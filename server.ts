@@ -1,10 +1,12 @@
-const express = require('express');
-const bodyParser = require('body-parser');
+import * as express from 'express';
+import * as bodyParser from 'body-parser';
 import * as fs from 'fs';
 import * as http from 'http';
 import * as https from 'https';
+import * as path from 'path';
 const OpenAI = require('openai');
 require('dotenv').config();
+
 const app = express();
 
 const openai = new OpenAI({
@@ -13,6 +15,13 @@ const openai = new OpenAI({
 
 app.use(bodyParser.json());
 app.use(express.static('public'));
+
+// Add this new route to serve ACME challenge files
+app.use('/.well-known/acme-challenge', express.static('/var/www/html/.well-known/acme-challenge', {
+    setHeaders: (res, path) => {
+        res.type('text/plain');
+    }
+}));
 
 // SSL/TLS options (update with your own key and certificate paths)
 const options = {
@@ -136,14 +145,18 @@ httpsServer.listen(443, () => {
     console.error('Failed to start HTTPS server:', err);
 });
 
-// Create HTTP server and redirect to HTTPS
-const httpServer = http.createServer((req, res) => {
-    res.writeHead(301, { 'Location': `https://${req.headers.host}${req.url}` });
-    res.end();
-});
-
+// Create HTTP server using the Express app
+const httpServer = http.createServer(app);
 httpServer.listen(80, () => {
     console.log('HTTP Server running on port 80');
 }).on('error', (err) => {
     console.error('Failed to start HTTP server:', err);
+});
+
+// Add a catch-all route to redirect HTTP to HTTPS (except for ACME challenges)
+app.use((req, res, next) => {
+    if (!req.secure && !req.url.startsWith('/.well-known/acme-challenge/')) {
+        return res.redirect(`https://${req.headers.host}${req.url}`);
+    }
+    next();
 });
