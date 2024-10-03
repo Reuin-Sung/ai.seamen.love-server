@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seamen Drinking API Interface</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            resize: vertical;
+        }
+        
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        #response {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        
+        #generatedPrompts {
+            background-color: #fff;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>Seamen Drinking API Interface</h1>
+    
+    <textarea id="darePrompt" rows="3" placeholder="Enter dare prompt..."></textarea>
+    <textarea id="truthPrompt" rows="3" placeholder="Enter truth prompt..."></textarea>
+    <textarea id="drinkPrompt" rows="3" placeholder="Enter drink prompt..."></textarea>
+    <textarea id="tablePrompt" rows="3" placeholder="Enter dare prompt..."></textarea>
+    
+    <button onclick="sendPrompts()">Update Prompts</button>
+    
+    <p id="response"></p>
+    
+    <h2>Generated Prompts</h2>
+    <pre id="generatedPrompts"></pre>
+    
+    <script>
+        async function loadCurrentPrompts() {
+            const response = await fetch('/current-prompts');
+            if (response.ok) {
+                const data = await response.json();
+                document.getElementById('darePrompt').value = data.darePrompt;
+                document.getElementById('truthPrompt').value = data.truthPrompt;
+                document.getElementById('drinkPrompt').value = data.drinkPrompt;
+                document.getElementById('tablePrompt').value = data.drinkPrompt;
+            } else {
+                console.error('Failed to load current prompts');
+            }
+        }
+
+        async function sendPrompts() {
+            const darePrompt = document.getElementById('darePrompt').value;
+            const truthPrompt = document.getElementById('truthPrompt').value;
+            const drinkPrompt = document.getElementById('drinkPrompt').value;
+            const tablePrompt = document.getElementById('tablePrompt').value;
+            const responseElement = document.getElementById('response');
+            const generatedPromptsElement = document.getElementById('generatedPrompts');
+            responseElement.textContent = 'Updating...';
+
+            const response = await fetch('/regenerate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ darePrompt, truthPrompt, drinkPrompt })
+            });
+
+            if (response.ok) {
+                responseElement.textContent = 'Prompts updated successfully';
+                const data = await response.json();
+                generatedPromptsElement.textContent = data.prompts;
+            } else {
+                responseElement.textContent = 'Error updating prompts';
+            }
+        }
+
+        window.onload = loadCurrentPrompts;
+    </script>
+</body>
+</html>
