@@ -129,9 +129,9 @@ app.post('/regenerate', async (req, res) => {
     currentDrinkPrompt = `${req.body.drinkPrompt || ''}`.trim();
     currentTablePrompt = `${req.body.tablePrompt || ''}`.trim();
 
-    var res = await regeneratePrompts();
+    var res2 = await regeneratePrompts();
 
-    res.json({ prompts: res });
+    res.json({ prompts: res2 });
 });
 
 // Generate prompts and save to CSV on server start
