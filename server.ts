@@ -119,11 +119,14 @@ async function loadAndReturnFile(filename, res)
 }
 
 app.post('/regenerate', async (req, res) => {
-    console.log("Regenerate body: " + req.body);
-    console.log("Prompt initial: " + req.body.promptAmount);
-    promptAmount = parseInt(req.body.promptAmount) ?? 10;
+    console.log("Regenerate body: " + req.body.toString());
+    console.log("Prompt initial: " + req.body.promptAmount.toString());
+    promptAmount = parseInt(req.body.promptAmount.toString()) ?? 10;
     if(promptAmount>30){
         promptAmount = 30;
+    }
+    if(promptAmount == NaN){
+        promptAmount = 10;
     }
 
     console.log("Prompt amount: " + promptAmount);
