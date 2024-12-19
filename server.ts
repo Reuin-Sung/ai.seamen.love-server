@@ -119,10 +119,14 @@ async function loadAndReturnFile(filename, res)
 }
 
 app.post('/regenerate', async (req, res) => {
+    console.log("Regenerate body: " + req.body);
+    console.log("Prompt initial: " + req.body.promptAmount);
     promptAmount = parseInt(req.body.promptAmount) ?? 10;
     if(promptAmount>30){
         promptAmount = 30;
     }
+
+    console.log("Prompt amount: " + promptAmount);
 
     currentDarePrompt = `${req.body.darePrompt || ''}`.trim();
     currentTruthPrompt = `${req.body.truthPrompt || ''}`.trim();
@@ -136,8 +140,8 @@ app.post('/regenerate', async (req, res) => {
 
 // Generate prompts and save to CSV on server start
 (async() => {
-    await regeneratePrompts();
-    console.log('Initial prompts generated and saved to csv');
+    let a = await regeneratePrompts();
+    console.log('Initial prompts generated and saved to csv' + a);
 })();
 
 async function regeneratePrompts() {    
