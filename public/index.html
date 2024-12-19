@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,12 +12,12 @@
             margin: 0;
             padding: 20px;
         }
-        
+
         h1 {
             color: #333;
             text-align: center;
         }
-        
+
         textarea {
             width: 100%;
             padding: 10px;
@@ -25,7 +26,7 @@
             border-radius: 4px;
             resize: vertical;
         }
-        
+
         button {
             background-color: #4CAF50;
             color: white;
@@ -35,16 +36,16 @@
             cursor: pointer;
             font-size: 16px;
         }
-        
+
         button:hover {
             background-color: #45a049;
         }
-        
+
         #response {
             margin-top: 20px;
             font-weight: bold;
         }
-        
+
         #generatedPrompts {
             background-color: #fff;
             padding: 10px;
@@ -54,21 +55,23 @@
         }
     </style>
 </head>
+
 <body>
     <h1>Seamen Drinking API Interface</h1>
-    
+
     <textarea id="darePrompt" rows="3" placeholder="Enter dare prompt..."></textarea>
     <textarea id="truthPrompt" rows="3" placeholder="Enter truth prompt..."></textarea>
     <textarea id="drinkPrompt" rows="3" placeholder="Enter drink prompt..."></textarea>
     <textarea id="tablePrompt" rows="3" placeholder="Enter dare prompt..."></textarea>
-    
+    <textarea id="promptAmount" rows="1" placeholder="Enter promptAmount"></textarea>
+
     <button onclick="sendPrompts()">Update Prompts</button>
-    
+
     <p id="response"></p>
-    
+
     <h2>Generated Prompts</h2>
     <pre id="generatedPrompts"></pre>
-    
+
     <script>
         async function loadCurrentPrompts() {
             const response = await fetch('/current-prompts');
@@ -77,7 +80,8 @@
                 document.getElementById('darePrompt').value = data.darePrompt;
                 document.getElementById('truthPrompt').value = data.truthPrompt;
                 document.getElementById('drinkPrompt').value = data.drinkPrompt;
-                document.getElementById('tablePrompt').value = data.drinkPrompt;
+                document.getelementbyid('tableprompt').value = data.drinkprompt;
+                document.getelementbyid('promptAmount').value = data.promptAmount;
             } else {
                 console.error('Failed to load current prompts');
             }
@@ -88,6 +92,7 @@
             const truthPrompt = document.getElementById('truthPrompt').value;
             const drinkPrompt = document.getElementById('drinkPrompt').value;
             const tablePrompt = document.getElementById('tablePrompt').value;
+            const prompotAMount = document.getElementById('promptAmount').value;
             const responseElement = document.getElementById('response');
             const generatedPromptsElement = document.getElementById('generatedPrompts');
             responseElement.textContent = 'Updating...';
@@ -97,7 +102,7 @@
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ darePrompt, truthPrompt, drinkPrompt })
+                body: JSON.stringify({darePrompt, truthPrompt, drinkPrompt, tablePrompt, promptAmount})
             });
 
             if (response.ok) {
@@ -112,4 +117,5 @@
         window.onload = loadCurrentPrompts;
     </script>
 </body>
+
 </html>

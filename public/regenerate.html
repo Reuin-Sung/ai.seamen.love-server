@@ -1,45 +1,50 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-  <title>Regenerate Spin the Bottle Prompts</title>
+    <title>Regenerate Spin the Bottle Prompts</title>
 </head>
+
 <body>
-  <h1>Regenerate Spin the Bottle Prompts</h1>
-  <form id="regenerateForm">
-    <label for="darePrompt">Dare Prompt:</label><br>
-    <textarea id="darePrompt" name="darePrompt" rows="4" cols="50"></textarea><br>
+    <h1>Regenerate Spin the Bottle Prompts</h1>
+    <form id="regenerateForm">
+        <label for="darePrompt">Dare Prompt:</label><br>
+        <textarea id="darePrompt" name="darePrompt" rows="4" cols="50"></textarea><br>
 
-    <label for="truthPrompt">Truth Prompt:</label><br>
-    <textarea id="truthPrompt" name="truthPrompt" rows="4" cols="50"></textarea><br>
+        <label for="truthPrompt">Truth Prompt:</label><br>
+        <textarea id="truthPrompt" name="truthPrompt" rows="4" cols="50"></textarea><br>
 
-    <label for="drinkPrompt">Drink Prompt:</label><br>
-    <textarea id="drinkPrompt" name="drinkPrompt" rows="4" cols="50"></textarea><br>
+        <label for="drinkPrompt">Drink Prompt:</label><br>
+        <textarea id="drinkPrompt" name="drinkPrompt" rows="4" cols="50"></textarea><br>
 
-    <button type="submit">Regenerate</button>
-  </form>
+        <button type="submit">Regenerate</button>
+    </form>
 
-  <script>
-    document.getElementById('regenerateForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
+    <script>
+        document.getElementById('regenerateForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
 
-      const darePrompt = document.getElementById('darePrompt').value;
-      const truthPrompt = document.getElementById('truthPrompt').value;
-      const drinkPrompt = document.getElementById('drinkPrompt').value;
+            const darePrompt = document.getElementById('darePrompt').value;
+            const truthPrompt = document.getElementById('truthPrompt').value;
+            const drinkPrompt = document.getElementById('drinkPrompt').value;
+            const tablePrompt = document.getElementById('tablePrompt').value;
+            const promptAmount = document.getElementById('promptAmount').value;
 
-      const response = await fetch('/regenerate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ darePrompt, truthPrompt, drinkPrompt }),
-      });
+            const response = await fetch('/regenerate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({darePrompt, truthPrompt, drinkPrompt, tablePrompt, promptAmount}),
+            });
 
-      if (response.ok) {
-        alert('Prompts regenerated successfully');
-      } else {
-        alert('Error regenerating prompts');
-      }
-    });
-  </script>
+            if (response.ok) {
+                alert('Prompts regenerated successfully');
+            } else {
+                alert('Error regenerating prompts');
+            }
+        });
+    </script>
 </body>
+
 </html>

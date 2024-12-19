@@ -40,6 +40,7 @@ let currentDarePrompt = '';
 let currentTruthPrompt = '';
 let currentDrinkPrompt = '';
 let currentTablePrompt = '';
+let promptAmount = 10;
 
 async function generatePrompt(prompt: string): Promise<string> {
     try {
@@ -48,7 +49,7 @@ async function generatePrompt(prompt: string): Promise<string> {
                 { role: 'system', content: 'You are the one with the best drinking games, keep it less than 12 words, keep in mind this will be performed in a VR game called VRCHAT, and also, like dont be cringe dude.' },
                 { role: 'user', content: prompt },
             ],
-            model: 'gpt-4o',
+            model: 'gpt-4o-mini',
         });
         if(completion == null || completion.choices.length == 0 || completion.choices[0].message == null || completion.choices[0].message.content == null) {
             return '';
@@ -87,7 +88,8 @@ app.get('/current-prompts', (req, res) => {
         darePrompt: currentDarePrompt,
         truthPrompt: currentTruthPrompt,
         drinkPrompt: currentDrinkPrompt,
-        tablePrompt: currentTablePrompt
+        tablePrompt: currentTablePrompt,
+        promptAmount: promptAmount
     });
 });
 
@@ -115,27 +117,37 @@ async function loadAndReturnFile(filename, res)
 }
 
 app.post('/regenerate', async (req, res) => {
-    currentDarePrompt = `${fixedPromptParts.dare} ${req.body.darePrompt || ''}`.trim();
-    currentTruthPrompt = `${fixedPromptParts.truth} ${req.body.truthPrompt || ''}`.trim();
-    currentDrinkPrompt = `${fixedPromptParts.drink} ${req.body.drinkPrompt || ''}`.trim();
-    currentTablePrompt = `${fixedPromptParts.table} ${req.body.tablePrompt || ''}`.trim();
+    promptAmount = parseInt(req.body.promptAmount) ?? 10;
+    if(promptAmount>30){
+        promptAmount = 30;
+    }
 
-    await generateAndSavePrompts([currentDarePrompt, currentTruthPrompt, currentDrinkPrompt], "spinthebottle", 30);
-    await generateAndSavePrompts([currentTablePrompt], "spinthetable", 30);
+    currentDarePrompt = `${req.body.darePrompt || ''}`.trim();
+    currentTruthPrompt = `${req.body.truthPrompt || ''}`.trim();
+    currentDrinkPrompt = `${req.body.drinkPrompt || ''}`.trim();
+    currentTablePrompt = `${req.body.tablePrompt || ''}`.trim();
+
+    await regeneratePrompts();
+
     res.json({ prompts: "Regenerated successfully" });
 });
 
 // Generate prompts and save to CSV on server start
 (async() => {
-    currentDarePrompt = fixedPromptParts.dare;
-    currentTruthPrompt = fixedPromptParts.truth;
-    currentDrinkPrompt = fixedPromptParts.drink;
-    currentTablePrompt = fixedPromptParts.table;
-
-    await generateAndSavePrompts([currentDarePrompt, currentTruthPrompt, currentDrinkPrompt], "spinthebottle", 30);
-    await generateAndSavePrompts([currentTablePrompt], "spinthetable", 30);
+    await regeneratePrompts();
     console.log('Initial prompts generated and saved to csv');
 })();
+
+async function regeneratePrompts() {    
+    let dareP = `${fixedPromptParts.dare} ${currentDarePrompt}`.trim();
+    let truthP = `${fixedPromptParts.truth} ${currentTruthPrompt}`.trim();
+    let drinkP = `${fixedPromptParts.drink} ${currentDrinkPrompt}`.trim();
+    let tableP = `${fixedPromptParts.table} ${currentTablePrompt}`.trim();
+
+    await generateAndSavePrompts([dareP, truthP, drinkP], "spinthebottle", promptAmount);
+    await generateAndSavePrompts([tableP], "spinthetable", promptAmount);
+    console.log('Initial prompts generated and saved to csv');
+}
 
 // Create HTTPS server
 const httpsServer = https.createServer(options, app);
