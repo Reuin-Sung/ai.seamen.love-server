@@ -30,10 +30,10 @@ const options = {
 };
 
 const fixedPromptParts = {
-    dare: 'Generate a dare prompt for a game of spin the bottle. The prompt should always start with Dare:',
-    truth: 'Generate a truth prompt for a game of spin the bottle. The prompt should always start with Truth:',
-    drink: 'Generate a drink prompt for a game of spin the bottle. The prompt should always start with Drink:',
-    table: 'Generate a drink prompt for a game of spin the bottle. The prompt should always start with Drink:'
+    dare: 'Generate a dare prompt for a game of spin the bottle.',
+    truth: 'Generate a truth prompt for a game of spin the bottle.',
+    drink: 'Generate a drink prompt for a game of spin the bottle.',
+    table: 'Generate a drink prompt for a game of spin the bottle.'
 };
 
 let currentDarePrompt = '';
@@ -80,7 +80,9 @@ async function saveCsv(filename: string, data: string)
 
 async function generateAndSavePrompts(prompts: string[], filename: string, amount: number)
 {
-    saveCsv(filename, (await generatePrompts(prompts, amount)).join(','));
+    let res = (await generatePrompts(prompts, amount)).join(',');
+    saveCsv(filename, res);
+    return res;
 }
 
 app.get('/current-prompts', (req, res) => {
@@ -127,9 +129,9 @@ app.post('/regenerate', async (req, res) => {
     currentDrinkPrompt = `${req.body.drinkPrompt || ''}`.trim();
     currentTablePrompt = `${req.body.tablePrompt || ''}`.trim();
 
-    await regeneratePrompts();
+    var res = await regeneratePrompts();
 
-    res.json({ prompts: "Regenerated successfully" });
+    res.json({ prompts: res });
 });
 
 // Generate prompts and save to CSV on server start
@@ -144,9 +146,10 @@ async function regeneratePrompts() {
     let drinkP = `${fixedPromptParts.drink} ${currentDrinkPrompt}`.trim();
     let tableP = `${fixedPromptParts.table} ${currentTablePrompt}`.trim();
 
-    await generateAndSavePrompts([dareP, truthP, drinkP], "spinthebottle", promptAmount);
-    await generateAndSavePrompts([tableP], "spinthetable", promptAmount);
-    console.log('Initial prompts generated and saved to csv');
+    let a = await generateAndSavePrompts([dareP, truthP, drinkP], "spinthebottle", promptAmount);
+    let b = await generateAndSavePrompts([tableP], "spinthetable", promptAmount);
+
+    return a + "," + b;
 }
 
 // Create HTTPS server
