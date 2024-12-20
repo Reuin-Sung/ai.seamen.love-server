@@ -124,6 +124,7 @@ async function loadAndReturnFile(filename: string, res: any) {
 
 app.post('/settoggles', async (req, res) => {
   console.log("setToggles");
+  console.log(JSON.stringify(req.body));
   var ta = req.body.toggleA;
   console.log(ta);
   isNight = ta;
