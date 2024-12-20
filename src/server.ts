@@ -38,7 +38,7 @@ const fixedPromptParts = {
   table: 'Generate a drink prompt for a social drinking game of spin the table.'
 };
 
-const originPrompt: string = 'You are the one with the best drinking games, no singing, keep it in mind that the person that is spinning is the one doing the action, keep it less than 12 words, keep in mind this will be in a VR game called VRCHAT, and also, like dont be cringe dude. Only generate 1 prompt per message.';
+const originPrompt: string = "You are the one with the best drinking games, no singing, keep it in mind that the person that was randomly selected is the one doing the action, keep it less than 12 words, keep in mind this will be in a VR game called VRCHAT, and also, like dont be cringe dude. Only generate 1 option per message. Don't mention spin the bottle";
 
 let currentDarePrompt = '';
 let currentTruthPrompt = '';
