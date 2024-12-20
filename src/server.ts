@@ -86,9 +86,9 @@ async function generateAndSavePrompts(prompts: string[], filename: string, amoun
 }
 
 app.get('/toggles', (_, res) => {
-  res.json({
-    Night: isNight
-  });
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', `attachment; filename="a.csv"`);
+  res.send("{isNight}");
 });
 
 app.get('/current-prompts', (_, res) => {
