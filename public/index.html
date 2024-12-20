@@ -131,19 +131,21 @@
       const toggleA = document.getElementById("ToggleA").value;
       const responseElement = document.getElementById('responseToggle');
 
+      console.log("ToggleA: " = toggleA);
+
       const response = await fetch('/settoggles', {
         method: 'POST',
         headesr: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({toggleA})
+        body: JSON.stringify({toggleA: toggleA})
       });
 
       if (response.ok) {
-        responseElement.textContent = 'Prompts updated successfully';
+        responseElement.textContent = 'Toggles updated successfully';
         const data = await response.json();
       } else {
-        responseElement.textContent = 'Error updating prompts';
+        responseElement.textContent = 'Error updating toggles';
       }
     }
 
