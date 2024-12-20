@@ -119,6 +119,7 @@
     }
 
     async function sendToggles() {
+      console.log("Sending toggles");
       const toggleA = document.getElementById("ToggleA").value;
 
       const response = await fetch('/settoggles', {

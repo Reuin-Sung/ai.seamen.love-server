@@ -123,6 +123,7 @@ async function loadAndReturnFile(filename: string, res: any) {
 }
 
 app.post('/settoggles', async (req, res) => {
+  console.log("setToggles");
   var ta = req.body.toggleA;
   console.log(ta);
   isNight = ta;
