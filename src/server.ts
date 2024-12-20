@@ -114,13 +114,12 @@ async function loadAndReturnFile(filename: string, res: any) {
 }
 
 app.post('/regenerate', async (req, res) => {
-  console.log("Regenerate body: " + req.body.toString());
   console.log("Prompt initial: " + req.body.promptAmount.toString());
   promptAmount = parseInt(req.body.promptAmount.toString()) ?? 10;
   if (promptAmount > 30) {
     promptAmount = 30;
   }
-  if (promptAmount == Number.NaN) {
+  if (Number.isNaN(promptAmount)) {
     promptAmount = 10;
   }
 
@@ -147,8 +146,9 @@ async function regeneratePrompts() {
   let truthP = `${fixedPromptParts.truth} ${currentTruthPrompt}`.trim();
   let drinkP = `${fixedPromptParts.drink} ${currentDrinkPrompt}`.trim();
   let tableP = `${fixedPromptParts.table} ${currentTablePrompt}`.trim();
-
+  console.log("Generating drinking prompts");
   let a = await generateAndSavePrompts([dareP, truthP, drinkP], "spinthebottle", promptAmount);
+  console.log("Generating table prompts");
   let b = await generateAndSavePrompts([tableP], "spinthetable", promptAmount);
 
   return a + "," + b;
