@@ -8,13 +8,14 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      background-color: #f5f5f5;
+      background-color: #1a1a1a;
       margin: 0;
       padding: 20px;
+      color: #ffffff;
     }
 
     h1 {
-      color: #333;
+      color: #ffffff;
       text-align: center;
     }
 
@@ -22,9 +23,11 @@
       width: 100%;
       padding: 10px;
       margin-bottom: 10px;
-      border: 1px solid #ccc;
+      border: 1px solid #444;
       border-radius: 4px;
       resize: vertical;
+      background-color: #2d2d2d;
+      color: #ffffff;
     }
 
     button {
@@ -44,19 +47,35 @@
     #response {
       margin-top: 20px;
       font-weight: bold;
+      color: #4CAF50;
     }
 
     #responseToggle {
       margin-top: 20px;
       font-weight: bold;
+      color: #4CAF50;
     }
 
     #generatedPrompts {
-      background-color: #fff;
+      background-color: #2d2d2d;
       padding: 10px;
-      border: 1px solid #ccc;
+      border: 1px solid #444;
       border-radius: 4px;
       white-space: pre-wrap;
+      color: #ffffff;
+    }
+
+    input[type="number"] {
+      background-color: #2d2d2d;
+      color: #ffffff;
+      border: 1px solid #444;
+      padding: 10px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+    }
+
+    input[type="checkbox"] {
+      accent-color: #4CAF50;
     }
   </style>
 </head>
@@ -128,8 +147,8 @@
 
     async function sendToggles() {
       console.log("Sending toggles");
-      console.log(document.getElementById("ToggleA").checked);
-      const toggleA = document.getElementById("ToggleA").checked;
+      console.log(document.getElementById("ToggleA").value);
+      const toggleA = document.getElementById("ToggleA").value == "on";
       const responseElement = document.getElementById('responseToggle');
 
       console.log("ToggleA: " + toggleA);
