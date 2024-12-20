@@ -3,7 +3,7 @@ import * as bodyParser from 'body-parser';
 import * as fs from 'fs';
 import * as http from 'http';
 import * as https from 'https';
-const OpenAI = require('openai');
+import { OpenAI } from "openai";
 require('dotenv').config();
 
 const app = express();
@@ -81,7 +81,7 @@ async function generateAndSavePrompts(prompts: string[], filename: string, amoun
   return res;
 }
 
-app.get('/current-prompts', (req, res) => {
+app.get('/current-prompts', (_, res) => {
   res.json({
     darePrompt: currentDarePrompt,
     truthPrompt: currentTruthPrompt,
@@ -91,15 +91,15 @@ app.get('/current-prompts', (req, res) => {
   });
 });
 
-app.get('/spinthebottle', (req, res) => {
+app.get('/spinthebottle', (_, res) => {
   loadAndReturnFile("spinthebottle", res);
 });
 
-app.get('/spinthetable', (req, res) => {
+app.get('/spinthetable', (_, res) => {
   loadAndReturnFile("spinthetable", res);
 });
 
-async function loadAndReturnFile(filename, res) {
+async function loadAndReturnFile(filename: string, res: any) {
   fs.readFile(filename + '.csv', 'utf8', (err, data) => {
     if (err) {
       console.error('Error reading CSV file:', err);
