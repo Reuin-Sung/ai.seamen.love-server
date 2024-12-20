@@ -46,6 +46,11 @@
       font-weight: bold;
     }
 
+    #responseToggle {
+      margin-top: 20px;
+      font-weight: bold;
+    }
+
     #generatedPrompts {
       background-color: #fff;
       padding: 10px;
@@ -75,6 +80,9 @@
   <input type="checkbox" id="ToggleA">Toggle a</checkbox>
   </br>
   <button onclick="sendToggles()">Update toggles</button>
+
+  <p id="responseToggle"></p>
+
 
   <script>
     async function loadCurrentPrompts() {
@@ -121,6 +129,7 @@
     async function sendToggles() {
       console.log("Sending toggles");
       const toggleA = document.getElementById("ToggleA").value;
+      const responseElement = document.getElementById('responseToggle');
 
       const response = await fetch('/settoggles', {
         method: 'POST',
@@ -128,7 +137,14 @@
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({toggleA});
-      })
+      });
+
+      if (response.ok) {
+        responseElement.textContent = 'Prompts updated successfully';
+        const data = await response.json();
+      } else {
+        responseElement.textContent = 'Error updating prompts';
+      }
     }
 
     window.onload = loadCurrentPrompts;
