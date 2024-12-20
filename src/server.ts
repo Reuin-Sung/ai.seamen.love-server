@@ -198,13 +198,14 @@ async function regeneratePrompts() {
   let dareP = `${fixedPromptParts.dare} ${currentDarePrompt}`.trim();
   let truthP = `${fixedPromptParts.truth} ${currentTruthPrompt}`.trim();
   let drinkP = `${fixedPromptParts.drink} ${currentDrinkPrompt}`.trim();
-  let tableP = `${fixedPromptParts.table} ${currentTablePrompt}`.trim();
+  //let tableP = `${fixedPromptParts.table} ${currentTablePrompt}`.trim();
   console.log("Generating drinking prompts");
   let a = await generateAndSavePrompts([dareP, truthP, drinkP], "spinthebottle", promptAmount);
-  console.log("Generating table prompts");
-  let b = await generateAndSavePrompts([tableP], "spinthetable", promptAmount);
+  //console.log("Generating table prompts");
+  //let b = await generateAndSavePrompts([tableP], "spinthetable", promptAmount);
 
-  return a + "," + b;
+  //return a + "," + b;
+  return a;
 }
 
 // Create HTTPS server
