@@ -63,18 +63,18 @@
   <textarea id="truthPrompt" rows="3" placeholder="Enter truth prompt..."></textarea>
   <textarea id="drinkPrompt" rows="3" placeholder="Enter drink prompt..."></textarea>
   <textarea id="tablePrompt" rows="3" placeholder="Enter table prompt..."></textarea>
-  <textarea id="promptAmount" rows="1" placeholder="Enter promptAmount"></textarea>
+  <input type="number" id="promptAmount" rows="1" placeholder="Enter promptAmount"></textarea>
 
   <button onclick="sendPrompts()">Update Prompts</button>
-  </br>
-
-  <checkbox id="ToggleA">Toggle a</checkbox>
-  <button onclick="sendToggles()">Update toggles</button>
-
   <p id="response"></p>
 
   <h2>Generated Prompts</h2>
   <pre id="generatedPrompts"></pre>
+  </br>
+
+  <input type="checkbox" id="ToggleA">Toggle a</checkbox>
+  </br>
+  <button onclick="sendToggles()">Update toggles</button>
 
   <script>
     async function loadCurrentPrompts() {
