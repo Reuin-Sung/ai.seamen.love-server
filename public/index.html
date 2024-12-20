@@ -128,8 +128,8 @@
 
     async function sendToggles() {
       console.log("Sending toggles");
-      console.log(document.getElementById("ToggleA").value);
-      const toggleA = document.getElementById("ToggleA").value == "on";
+      console.log(document.getElementById("ToggleA").checked);
+      const toggleA = document.getElementById("ToggleA").checked;
       const responseElement = document.getElementById('responseToggle');
 
       console.log("ToggleA: " + toggleA);
