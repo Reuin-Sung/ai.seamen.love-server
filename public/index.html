@@ -135,7 +135,7 @@
 
       const response = await fetch('/settoggles', {
         method: 'POST',
-        headesr: {
+        headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({toggleA: toggleA})
