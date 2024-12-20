@@ -32,13 +32,13 @@ const options = {
 };
 
 const fixedPromptParts = {
-  dare: 'Generate a dare prompt for a social drinking game of spin the bottle.',
-  truth: 'Generate a truth prompt for a social drinking game of spin the bottle.',
-  drink: 'Generate a drink prompt for a social drinking game of spin the bottle.',
-  table: 'Generate a drink prompt for a social drinking game of spin the table.'
+  dare: "Generate a dare prompt for a social drinking game of spin the bottle.",
+  truth: "Generate a truth prompt for a social drinking game of spin the bottle.",
+  drink: "Generate a drink prompt for a social drinking game of spin the bottle. Don't tell the user to drink too much.",
+  table: "Generate a drink prompt for a social drinking game of spin the table. Don't tell the user to drink too much."
 };
 
-const originPrompt: string = "You are a spin the bottle prompt generator, no singing, keep it in mind that the person that was randomly selected is the one doing the action, keep it less than 12 words, keep in mind this will be in a VR game called VRCHAT, and also, like dont be cringe dude. Only generate 1 option per message. Don't mention spin the bottle. Don't tell the user to drink too much.";
+const originPrompt: string = "You are a spin the bottle prompt generator, no singing, keep it in mind that the person that was randomly selected is the one doing the action, keep it less than 12 words, keep in mind this will be in a VR game called VRCHAT, and also, like dont be cringe dude. Only generate 1 option per message. Don't mention spin the bottle.";
 
 let currentDarePrompt = '';
 let currentTruthPrompt = '';
