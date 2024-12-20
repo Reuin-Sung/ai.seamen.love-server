@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as http from 'http';
 import * as https from 'https';
 import { OpenAI } from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 require('dotenv').config();
 
 const app = express();
@@ -11,6 +12,8 @@ const app = express();
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+const geminiModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 app.use(bodyParser.json());
 app.use(express.static('public'));
@@ -35,6 +38,8 @@ const fixedPromptParts = {
   table: 'Generate a drink prompt for a social drinking game of spin the table.'
 };
 
+const originPrompt = 'You are the one with the best drinking games, no singing, keep it in mind that the person that is spinning is the one doing the action, keep it less than 12 words, keep in mind this will be in a VR game called VRCHAT, and also, like dont be cringe dude.';
+
 let currentDarePrompt = '';
 let currentTruthPrompt = '';
 let currentDrinkPrompt = '';
@@ -43,23 +48,37 @@ let promptAmount = 10;
 
 //toggles
 let isNight = false;
+const UseGemini = true;
 
 async function generatePrompt(prompt: string): Promise<string> {
-  try {
-    const completion = await openai.chat.completions.create({
-      messages: [
-        { role: 'system', content: 'You are the one with the best drinking games, no singing, keep it in mind that the person that is spinning is the one doing the action, keep it less than 12 words, keep in mind this will be in a VR game called VRCHAT, and also, like dont be cringe dude.' },
-        { role: 'user', content: prompt },
-      ],
-      model: 'gpt-4o-mini',
-    });
-    if (completion == null || completion.choices.length == 0 || completion.choices[0].message == null || completion.choices[0].message.content == null) {
+  if (UseGemini) {
+    try {
+      let res = await geminiModel.generateContent([originPrompt, prompt]);
+
+      console.log(res.response.text());
+      return res.response.text();
+    } catch (error) {
+      console.error('Error generating prompt:', error);
       return '';
     }
-    return completion.choices[0].message.content.trim();
-  } catch (error) {
-    console.error('Error generating prompt:', error);
-    return '';
+  }
+  else {
+    try {
+      const completion = await openai.chat.completions.create({
+        messages: [
+          { role: 'system', content: 'You are the one with the best drinking games, no singing, keep it in mind that the person that is spinning is the one doing the action, keep it less than 12 words, keep in mind this will be in a VR game called VRCHAT, and also, like dont be cringe dude.' },
+          { role: 'user', content: prompt },
+        ],
+        model: 'gpt-4o-mini',
+      });
+      if (completion == null || completion.choices.length == 0 || completion.choices[0].message == null || completion.choices[0].message.content == null) {
+        return '';
+      }
+      return completion.choices[0].message.content.trim();
+    } catch (error) {
+      console.error('Error generating prompt:', error);
+      return '';
+    }
   }
 }
 
