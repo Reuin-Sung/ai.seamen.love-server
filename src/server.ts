@@ -17,7 +17,7 @@ app.use(express.static('public'));
 
 // Add this new route to serve ACME challenge files
 app.use('/.well-known/acme-challenge', express.static('/var/www/html/.well-known/acme-challenge', {
-  setHeaders: (res, path) => {
+  setHeaders: (res, _) => {
     res.type('text/plain');
   }
 }));
@@ -163,12 +163,14 @@ httpsServer.listen(443, () => {
 });
 
 // Create HTTP server using the Express app
+
 const httpServer = http.createServer(app);
 httpServer.listen(80, () => {
   console.log('HTTP Server running on port 80');
 }).on('error', (err) => {
   console.error('Failed to start HTTP server:', err);
 });
+
 
 // Add a catch-all route to redirect HTTP to HTTPS (except for ACME challenges)
 app.use((req, res, next) => {
