@@ -29,10 +29,10 @@ const options = {
 };
 
 const fixedPromptParts = {
-  dare: 'Generate a dare prompt for a game of spin the bottle.',
-  truth: 'Generate a truth prompt for a game of spin the bottle.',
-  drink: 'Generate a drink prompt for a game of spin the bottle.',
-  table: 'Generate a drink prompt for a game of spin the bottle.'
+  dare: 'Generate a dare prompt for a social drinking game of spin the bottle.',
+  truth: 'Generate a truth prompt for a social drinking game of spin the bottle.',
+  drink: 'Generate a drink prompt for a social drinking game of spin the bottle.',
+  table: 'Generate a drink prompt for a social drinking game of spin the table.'
 };
 
 let currentDarePrompt = '';
