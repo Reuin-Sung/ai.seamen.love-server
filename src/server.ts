@@ -50,39 +50,48 @@ let promptAmount = 10;
 let isNight = false;
 const UseGemini = true;
 
-async function generatePrompt(prompt: string): Promise<string> {
-  if (UseGemini) {
-    try {
-      let res = await geminiModel.generateContent([originPrompt, prompt]);
-
-      console.log(res.response.text());
-      return res.response.text();
-    } catch (error) {
-      console.error('Error generating prompt:', error);
-      return '';
-    }
-  }
-  else {
-    try {
-      const completion = await openai.chat.completions.create({
-        messages: [
-          { role: 'system', content: 'You are the one with the best drinking games, no singing, keep it in mind that the person that is spinning is the one doing the action, keep it less than 12 words, keep in mind this will be in a VR game called VRCHAT, and also, like dont be cringe dude.' },
-          { role: 'user', content: prompt },
-        ],
-        model: 'gpt-4o-mini',
-      });
-      if (completion == null || completion.choices.length == 0 || completion.choices[0].message == null || completion.choices[0].message.content == null) {
-        return '';
+async function generatePromptsGemini(prompts: string[], amount: number): Promise<string[]> {
+  try {
+    let res: string[] = [];
+    for (let i = 0; i < prompts.length; i++) {
+      var chat = geminiModel.startChat({ systemInstruction: originPrompt });
+      for (let j = 0; j < amount; j++) {
+        var messageRes = await chat.sendMessage(prompts[i]);
+        res.push(messageRes.response.text());
       }
-      return completion.choices[0].message.content.trim();
-    } catch (error) {
-      console.error('Error generating prompt:', error);
+    }
+
+    console.log(res);
+    return res;
+  } catch (error) {
+    console.error('Error generating prompt:', error);
+    return [];
+  }
+}
+
+async function generatePrompt(prompt: string): Promise<string> {
+  try {
+    const completion = await openai.chat.completions.create({
+      messages: [
+        { role: 'system', content: 'You are the one with the best drinking games, no singing, keep it in mind that the person that is spinning is the one doing the action, keep it less than 12 words, keep in mind this will be in a VR game called VRCHAT, and also, like dont be cringe dude.' },
+        { role: 'user', content: prompt },
+      ],
+      model: 'gpt-4o-mini',
+    });
+    if (completion == null || completion.choices.length == 0 || completion.choices[0].message == null || completion.choices[0].message.content == null) {
       return '';
     }
+    return completion.choices[0].message.content.trim();
+  } catch (error) {
+    console.error('Error generating prompt:', error);
+    return '';
   }
 }
 
 async function generatePrompts(prompts: string[], amount: number): Promise<string[]> {
+  if (UseGemini) {
+    return await generatePromptsGemini(prompts, amount);
+  }
   let res: string[] = [];
   for (let j = 0; j < prompts.length; j++) {
     console.log("Genering prompts for: " + prompts[j]);
