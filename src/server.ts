@@ -48,7 +48,7 @@ async function generatePrompt(prompt: string): Promise<string> {
   try {
     const completion = await openai.chat.completions.create({
       messages: [
-        { role: 'system', content: 'You are the one with the best drinking games, keep it less than 12 words, keep in mind this will be in a VR game called VRCHAT, and also, like dont be cringe dude.' },
+        { role: 'system', content: 'You are the one with the best drinking games, keep it in mind that the person that is spinning is the one doing the action, keep it less than 12 words, keep in mind this will be in a VR game called VRCHAT, and also, like dont be cringe dude.' },
         { role: 'user', content: prompt },
       ],
       model: 'gpt-4o-mini',
