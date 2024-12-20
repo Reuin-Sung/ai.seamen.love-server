@@ -3,7 +3,6 @@ import * as bodyParser from 'body-parser';
 import * as fs from 'fs';
 import * as http from 'http';
 import * as https from 'https';
-import * as path from 'path';
 const OpenAI = require('openai');
 require('dotenv').config();
 
