@@ -66,6 +66,10 @@
   <textarea id="promptAmount" rows="1" placeholder="Enter promptAmount"></textarea>
 
   <button onclick="sendPrompts()">Update Prompts</button>
+  </br>
+
+  <checkbox id="ToggleA">Toggle a</checkbox>
+  <button onclick="sendToggles()">Update toggles</button>
 
   <p id="response"></p>
 
@@ -112,6 +116,18 @@
       } else {
         responseElement.textContent = 'Error updating prompts';
       }
+    }
+
+    async function sendToggles() {
+      const toggleA = document.getElementById("ToggleA").value;
+
+      const response = await fetch('/settoggles', {
+        method: 'POST',
+        headesr: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({toggleA});
+      })
     }
 
     window.onload = loadCurrentPrompts;

@@ -41,6 +41,9 @@ let currentDrinkPrompt = '';
 let currentTablePrompt = '';
 let promptAmount = 10;
 
+//toggles
+let isNight = false;
+
 async function generatePrompt(prompt: string): Promise<string> {
   try {
     const completion = await openai.chat.completions.create({
@@ -81,6 +84,12 @@ async function generateAndSavePrompts(prompts: string[], filename: string, amoun
   return res;
 }
 
+app.get('/toggles', (_, res) => {
+  res.json({
+    Night: isNight
+  });
+});
+
 app.get('/current-prompts', (_, res) => {
   res.json({
     darePrompt: currentDarePrompt,
@@ -112,6 +121,14 @@ async function loadAndReturnFile(filename: string, res: any) {
     res.send(data);
   });
 }
+
+app.post('/settoggles', async (req, res) => {
+  var ta = req.body.toggleA;
+  console.log(ta);
+  isNight = ta;
+
+  res.json({ res: "It good" });
+});
 
 app.post('/regenerate', async (req, res) => {
   console.log("Prompt initial: " + req.body.promptAmount.toString());
@@ -167,7 +184,6 @@ httpsServer.listen(443, () => {
 });
 
 // Create HTTP server using the Express app
-
 const httpServer = http.createServer(app);
 httpServer.listen(80, () => {
   console.log('HTTP Server running on port 80');
