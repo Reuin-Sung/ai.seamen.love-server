@@ -66,6 +66,7 @@ async function generatePrompt(prompt: string): Promise<string> {
 async function generatePrompts(prompts: string[], amount: number): Promise<string[]> {
   let res: string[] = [];
   for (let j = 0; j < prompts.length; j++) {
+    console.log("Genering prompts for: " + prompts[j]);
     for (let i = 0; i < amount; i++) {
       res.push(await generatePrompt(prompts[j]));
     }
