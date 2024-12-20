@@ -137,7 +137,7 @@ app.post('/regenerate', async (req, res) => {
 
 // Generate prompts and save to CSV on server start
 (async () => {
-  let f = fs.existsSync("dare.csv");
+  let f = fs.existsSync("spinthebottle.csv");
   console.log("Has previous prompt file: " + f);
   if (!f) {
     let a = await regeneratePrompts();
