@@ -45,7 +45,7 @@ async function generatePrompt(prompt: string): Promise<string> {
   try {
     const completion = await openai.chat.completions.create({
       messages: [
-        { role: 'system', content: 'You are the one with the best drinking games, keep it less than 12 words, keep in mind this will be performed in a VR game called VRCHAT, and also, like dont be cringe dude.' },
+        { role: 'system', content: 'You are the one with the best drinking games, keep it less than 12 words, keep in mind this will be in a VR game called VRCHAT, and also, like dont be cringe dude.' },
         { role: 'user', content: prompt },
       ],
       model: 'gpt-4o-mini',
@@ -72,7 +72,7 @@ async function generatePrompts(prompts: string[], amount: number): Promise<strin
 
 async function saveCsv(filename: string, data: string) {
   fs.writeFileSync(filename + '.csv', data, 'utf8')
-  console.log('CSV file saved successfully');
+  console.log(filename + ' file saved successfully');
 }
 
 async function generateAndSavePrompts(prompts: string[], filename: string, amount: number) {
@@ -137,8 +137,12 @@ app.post('/regenerate', async (req, res) => {
 
 // Generate prompts and save to CSV on server start
 (async () => {
-  let a = await regeneratePrompts();
-  console.log('Initial prompts generated and saved to csv' + a);
+  let f = fs.existsSync("dare.csv");
+  console.log("Has previous prompt file: " + f);
+  if (!f) {
+    let a = await regeneratePrompts();
+    console.log('Initial prompts generated and saved to csv' + a);
+  }
 })();
 
 async function regeneratePrompts() {
