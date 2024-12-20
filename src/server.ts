@@ -38,7 +38,7 @@ const fixedPromptParts = {
   table: 'Generate a drink prompt for a social drinking game of spin the table.'
 };
 
-const originPrompt = 'You are the one with the best drinking games, no singing, keep it in mind that the person that is spinning is the one doing the action, keep it less than 12 words, keep in mind this will be in a VR game called VRCHAT, and also, like dont be cringe dude.';
+const originPrompt: string = 'You are the one with the best drinking games, no singing, keep it in mind that the person that is spinning is the one doing the action, keep it less than 12 words, keep in mind this will be in a VR game called VRCHAT, and also, like dont be cringe dude.';
 
 let currentDarePrompt = '';
 let currentTruthPrompt = '';
@@ -54,7 +54,8 @@ async function generatePromptsGemini(prompts: string[], amount: number): Promise
   try {
     let res: string[] = [];
     for (let i = 0; i < prompts.length; i++) {
-      var chat = geminiModel.startChat({ systemInstruction: originPrompt });
+      var chat = geminiModel.startChat();
+      await chat.sendMessage(originPrompt);
       for (let j = 0; j < amount; j++) {
         var messageRes = await chat.sendMessage(prompts[i]);
         res.push(messageRes.response.text());
