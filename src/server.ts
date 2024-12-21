@@ -93,6 +93,7 @@ async function generatePrompts(prompts: string[], amount: number): Promise<strin
   if (UseGemini) {
     return await generatePromptsGemini(prompts, amount);
   }
+
   let res: string[] = [];
   for (let j = 0; j < prompts.length; j++) {
     console.log("Genering prompts for: " + prompts[j]);
@@ -217,12 +218,14 @@ httpsServer.listen(443, () => {
 });
 
 // Create HTTP server using the Express app
+/*
 const httpServer = http.createServer(app);
 httpServer.listen(80, () => {
   console.log('HTTP Server running on port 80');
 }).on('error', (err) => {
   console.error('Failed to start HTTP server:', err);
 });
+*/
 
 
 // Add a catch-all route to redirect HTTP to HTTPS (except for ACME challenges)
