@@ -109,7 +109,7 @@ async function saveCsv(filename: string, data: string) {
 }
 
 async function generateAndSavePrompts(prompts: string[], filename: string, amount: number) {
-  let res = (await generatePrompts(prompts, amount)).join(',');
+  let res = (await generatePrompts(prompts, amount)).join('|');
   saveCsv(filename, res);
   return res;
 }
