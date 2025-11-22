@@ -3,39 +3,48 @@ import * as bodyParser from 'body-parser';
 import * as fs from 'fs';
 import * as http from 'http';
 import * as https from 'https';
-import { OpenAI } from "openai";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import {OpenAI} from "openai";
+import {GoogleGenerativeAI} from "@google/generative-ai";
+import { OpenRouter } from "@openrouter/sdk";
+import {ChatResponseChoice, Message} from "@openrouter/sdk/models";
+
 require('dotenv').config();
 
 const app = express();
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+    apiKey: process.env.OPENAI_API_KEY,
 });
+
+const openRouter = new OpenRouter({
+    apiKey: process.env.OPENROUTER_API_KEY,
+});
+let openRouterModel = "x-ai/grok-4.1-fast:free";
+
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-const geminiModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+const geminiModel = genAI.getGenerativeModel({model: "gemini-2.5-flash"});
 
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
 // Add this new route to serve ACME challenge files
 app.use('/.well-known/acme-challenge', express.static('/var/www/html/.well-known/acme-challenge', {
-  setHeaders: (res, _) => {
-    res.type('text/plain');
-  }
+    setHeaders: (res, _) => {
+        res.type('text/plain');
+    }
 }));
 
 // SSL/TLS options (update with your own key and certificate paths)
 const options = {
-  key: fs.readFileSync('/etc/letsencrypt/live/ai.seamen.love/privkey.pem'),
-  cert: fs.readFileSync('/etc/letsencrypt/live/ai.seamen.love/fullchain.pem')
+    key: fs.readFileSync('/etc/letsencrypt/live/ai.seamen.love/privkey.pem'),
+    cert: fs.readFileSync('/etc/letsencrypt/live/ai.seamen.love/fullchain.pem')
 };
 
 const fixedPromptParts = {
-  dare: "Generate a dare prompt for a social drinking game of spin the bottle.",
-  truth: "Generate a truth prompt for a social drinking game of spin the bottle.",
-  drink: "Generate a drink prompt for a social drinking game of spin the bottle. Don't always tell the user to finish a large amount of the drink.",
-  table: "Generate a drink prompt for a social drinking game of spin the table. Don't tell the user to drink too much."
+    dare: "Generate a dare prompt for a social drinking game of spin the bottle.",
+    truth: "Generate a truth prompt for a social drinking game of spin the bottle.",
+    drink: "Generate a drink prompt for a social drinking game of spin the bottle. Don't always tell the user to finish a large amount of the drink.",
+    table: "Generate a drink prompt for a social drinking game of spin the table. Don't tell the user to drink too much."
 };
 
 const originPrompt: string = "You are a spin the bottle prompt generator, no singing, keep it in mind that the person that was randomly selected is the one doing the action, keep it less than 12 words, keep in mind this will be in a VR game called VRCHAT, and also, like dont be cringe dude. Only generate 1 option per message. Don't mention spin the bottle.";
@@ -50,188 +59,226 @@ let promptAmount = 10;
 let isNight = false;
 const UseGemini = true;
 
-async function generatePromptsGemini(prompts: string[], amount: number): Promise<string[]> {
-  try {
+async function generatePromptsOpenRouter(prompts: string[], amount: number): Promise<string[]> {
     let res: string[] = [];
     for (let i = 0; i < prompts.length; i++) {
-      var chat = geminiModel.startChat();
-      await chat.sendMessage(originPrompt);
-      for (let j = 0; j < amount; j++) {
-        var messageRes = await chat.sendMessage(prompts[i]);
-        res.push(messageRes.response.text());
-      }
+        let messages : ChatResponseChoice[] = [{
+            role: 'system',
+            content: originPrompt,
+        }];
+        
+        messages = await sendOpenRouterMessage(messages);
+        for (let j = 0; j < amount; j++) {
+            messages.push({
+                role: 'user',
+                content: prompts[j]
+            });
+            
+            messages = await sendOpenRouterMessage(messages)
+        }
+        
+        messages.filter((m) => m.message.role != 'user' && m.message.role != 'system').forEach((m) => res.push(m.message.content as string));
     }
+    
+    return res;    
+}
 
-    console.log(res);
-    return res;
-  } catch (error) {
-    console.error('Error generating prompt:', error);
-    return [];
-  }
+async function sendOpenRouterMessage(chat: Message[] = []): Promise<ChatResponseChoice[]> {
+    const completion = await openRouter.chat.send({
+        model: openRouterModel,
+        messages: chat,
+        stream: false,
+    });
+    
+    return completion.choices;
+}
+
+async function generatePromptsGemini(prompts: string[], amount: number): Promise<string[]> {
+    try {
+        let res: string[] = [];
+        for (let i = 0; i < prompts.length; i++) {
+            var chat = geminiModel.startChat();
+            await chat.sendMessage(originPrompt);
+            for (let j = 0; j < amount; j++) {
+                var messageRes = await chat.sendMessage(prompts[i]);
+                res.push(messageRes.response.text());
+            }
+        }
+
+        console.log(res);
+        return res;
+    } catch (error) {
+        console.error('Error generating prompt:', error);
+        return [];
+    }
 }
 
 async function generatePrompt(prompt: string): Promise<string> {
-  try {
-    const completion = await openai.chat.completions.create({
-      messages: [
-        { role: 'system', content: 'You are the one with the best drinking games, no singing, keep it in mind that the person that is spinning is the one doing the action, keep it less than 12 words, keep in mind this will be in a VR game called VRCHAT, and also, like dont be cringe dude.' },
-        { role: 'user', content: prompt },
-      ],
-      model: 'gpt-4o-mini',
-    });
-    if (completion == null || completion.choices.length == 0 || completion.choices[0].message == null || completion.choices[0].message.content == null) {
-      return '';
+    try {
+        const completion = await openai.chat.completions.create({
+            messages: [
+                {
+                    role: 'system',
+                    content: 'You are the one with the best drinking games, no singing, keep it in mind that the person that is spinning is the one doing the action, keep it less than 12 words, keep in mind this will be in a VR game called VRCHAT, and also, like dont be cringe dude.'
+                },
+                {role: 'user', content: prompt},
+            ],
+            model: 'gpt-4o-mini',
+        });
+        if (completion == null || completion.choices.length == 0 || completion.choices[0].message == null || completion.choices[0].message.content == null) {
+            return '';
+        }
+        return completion.choices[0].message.content.trim();
+    } catch (error) {
+        console.error('Error generating prompt:', error);
+        return '';
     }
-    return completion.choices[0].message.content.trim();
-  } catch (error) {
-    console.error('Error generating prompt:', error);
-    return '';
-  }
 }
 
 async function generatePrompts(prompts: string[], amount: number): Promise<string[]> {
-  if (UseGemini) {
-    return await generatePromptsGemini(prompts, amount);
-  }
-
-  let res: string[] = [];
-  for (let j = 0; j < prompts.length; j++) {
-    console.log("Genering prompts for: " + prompts[j]);
-    for (let i = 0; i < amount; i++) {
-      res.push(await generatePrompt(prompts[j]));
+    return await generatePromptsOpenRouter(prompts, amount);
+    /*
+    if (UseGemini) {
+        return await generatePromptsGemini(prompts, amount);
     }
-  }
-  return res;
+
+    let res: string[] = [];
+    for (let j = 0; j < prompts.length; j++) {
+        console.log("Genering prompts for: " + prompts[j]);
+        for (let i = 0; i < amount; i++) {
+            res.push(await generatePrompt(prompts[j]));
+        }
+    }
+    return res;
+     */
 }
 
 async function saveCsv(filename: string, data: string) {
-  fs.writeFileSync(filename + '.csv', data, 'utf8')
-  console.log(filename + ' file saved successfully');
+    fs.writeFileSync(filename + '.csv', data, 'utf8')
+    console.log(filename + ' file saved successfully');
 }
 
 async function generateAndSavePrompts(prompts: string[], filename: string, amount: number) {
-  let res = (await generatePrompts(prompts, amount)).join('|');
-  saveCsv(filename, res);
-  return res;
+    let res = (await generatePrompts(prompts, amount)).join('|');
+    saveCsv(filename, res);
+    return res;
 }
 
 app.get('/toggles', (_, res) => {
-  res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', `attachment; filename="a.csv"`);
-  res.send(isNight);
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="a.csv"`);
+    res.send(isNight);
 });
 
 app.get('/current-prompts', (_, res) => {
-  res.json({
-    darePrompt: currentDarePrompt,
-    truthPrompt: currentTruthPrompt,
-    drinkPrompt: currentDrinkPrompt,
-    tablePrompt: currentTablePrompt,
-    promptAmount: promptAmount
-  });
+    res.json({
+        darePrompt: currentDarePrompt,
+        truthPrompt: currentTruthPrompt,
+        drinkPrompt: currentDrinkPrompt,
+        tablePrompt: currentTablePrompt,
+        promptAmount: promptAmount
+    });
 });
 
 app.get('/spinthebottle', (_, res) => {
-  loadAndReturnFile("spinthebottle", res);
+    loadAndReturnFile("spinthebottle", res);
 });
 
 app.get('/spinthetable', (_, res) => {
-  loadAndReturnFile("spinthetable", res);
+    loadAndReturnFile("spinthetable", res);
 });
 
 async function loadAndReturnFile(filename: string, res: any) {
-  fs.readFile(filename + '.csv', 'utf8', (err, data) => {
-    if (err) {
-      console.error('Error reading CSV file:', err);
-      res.status(500).send('Error reading CSV file');
-      return;
-    }
-    console.log('CSV Contents:', data);
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);
-    res.send(data);
-  });
+    fs.readFile(filename + '.csv', 'utf8', (err, data) => {
+        if (err) {
+            console.error('Error reading CSV file:', err);
+            res.status(500).send('Error reading CSV file');
+            return;
+        }
+        console.log('CSV Contents:', data);
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);
+        res.send(data);
+    });
 }
 
 app.post('/settoggles', async (req, res) => {
-  console.log("setToggles");
-  console.log(JSON.stringify(req.body));
-  var ta = req.body.toggleA;
-  console.log(ta);
-  isNight = ta;
+    console.log("setToggles");
+    console.log(JSON.stringify(req.body));
+    var ta = req.body.toggleA;
+    console.log(ta);
+    isNight = ta;
 
-  res.json({ res: "It good" });
+    res.json({res: "It good"});
 });
 
 app.post('/regenerate', async (req, res) => {
-  console.log("Prompt initial: " + req.body.promptAmount.toString());
-  promptAmount = parseInt(req.body.promptAmount.toString()) ?? 10;
-  if (promptAmount > 30) {
-    promptAmount = 30;
-  }
-  if (Number.isNaN(promptAmount)) {
-    promptAmount = 10;
-  }
+    console.log("Prompt initial: " + req.body.promptAmount.toString());
+    promptAmount = parseInt(req.body.promptAmount.toString()) ?? 10;
+    if (promptAmount > 30) {
+        promptAmount = 30;
+    }
+    if (Number.isNaN(promptAmount)) {
+        promptAmount = 10;
+    }
 
-  console.log("Prompt amount: " + promptAmount);
+    console.log("Prompt amount: " + promptAmount);
 
-  currentDarePrompt = `${req.body.darePrompt || ''}`.trim();
-  currentTruthPrompt = `${req.body.truthPrompt || ''}`.trim();
-  currentDrinkPrompt = `${req.body.drinkPrompt || ''}`.trim();
-  currentTablePrompt = `${req.body.tablePrompt || ''}`.trim();
+    currentDarePrompt = `${req.body.darePrompt || ''}`.trim();
+    currentTruthPrompt = `${req.body.truthPrompt || ''}`.trim();
+    currentDrinkPrompt = `${req.body.drinkPrompt || ''}`.trim();
+    currentTablePrompt = `${req.body.tablePrompt || ''}`.trim();
 
-  var res2 = await regeneratePrompts();
+    var res2 = await regeneratePrompts();
 
-  res.json({ prompts: res2 });
+    res.json({prompts: res2});
 });
 
 // Generate prompts and save to CSV on server start
 (async () => {
-  let f = fs.existsSync("spinthebottle.csv");
-  console.log("Has previous prompt file: " + f);
-  if (!f) {
-    let a = await regeneratePrompts();
-    console.log('Initial prompts generated and saved to csv' + a);
-  }
+    let f = fs.existsSync("spinthebottle.csv");
+    console.log("Has previous prompt file: " + f);
+    if (!f) {
+        let a = await regeneratePrompts();
+        console.log('Initial prompts generated and saved to csv' + a);
+    }
 })();
 
 async function regeneratePrompts() {
-  let dareP = `${fixedPromptParts.dare} ${currentDarePrompt}`.trim();
-  let truthP = `${fixedPromptParts.truth} ${currentTruthPrompt}`.trim();
-  let drinkP = `${fixedPromptParts.drink} ${currentDrinkPrompt}`.trim();
-  //let tableP = `${fixedPromptParts.table} ${currentTablePrompt}`.trim();
-  console.log("Generating drinking prompts");
-  let a = await generateAndSavePrompts([dareP, truthP, drinkP], "spinthebottle", promptAmount);
-  //console.log("Generating table prompts");
-  //let b = await generateAndSavePrompts([tableP], "spinthetable", promptAmount);
+    let dareP = `${fixedPromptParts.dare} ${currentDarePrompt}`.trim();
+    let truthP = `${fixedPromptParts.truth} ${currentTruthPrompt}`.trim();
+    let drinkP = `${fixedPromptParts.drink} ${currentDrinkPrompt}`.trim();
+    //let tableP = `${fixedPromptParts.table} ${currentTablePrompt}`.trim();
+    console.log("Generating drinking prompts");
+    let a = await generateAndSavePrompts([dareP, truthP, drinkP], "spinthebottle", promptAmount);
+    //console.log("Generating table prompts");
+    //let b = await generateAndSavePrompts([tableP], "spinthetable", promptAmount);
 
-  //return a + "," + b;
-  return a;
+    //return a + "," + b;
+    return a;
 }
 
 // Create HTTPS server
 const httpsServer = https.createServer(options, app);
 httpsServer.listen(443, () => {
-  console.log('HTTPS Server running on port 443');
+    console.log('HTTPS Server running on port 443');
 }).on('error', (err) => {
-  console.error('Failed to start HTTPS server:', err);
+    console.error('Failed to start HTTPS server:', err);
 });
 
 // Create HTTP server using the Express app
-/*
 const httpServer = http.createServer(app);
 httpServer.listen(80, () => {
-  console.log('HTTP Server running on port 80');
+    console.log('HTTP Server running on port 80');
 }).on('error', (err) => {
-  console.error('Failed to start HTTP server:', err);
+    console.error('Failed to start HTTP server:', err);
 });
-*/
 
 
 // Add a catch-all route to redirect HTTP to HTTPS (except for ACME challenges)
 app.use((req, res, next) => {
-  if (!req.secure && !req.url.startsWith('/.well-known/acme-challenge/')) {
-    return res.redirect(`https://${req.headers.host}${req.url}`);
-  }
-  next();
+    if (!req.secure && !req.url.startsWith('/.well-known/acme-challenge/')) {
+        return res.redirect(`https://${req.headers.host}${req.url}`);
+    }
+    next();
 });
