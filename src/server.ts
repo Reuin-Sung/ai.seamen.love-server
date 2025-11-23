@@ -214,6 +214,9 @@ app.post("/updateandrestart", () => {
     spawn('sh', ['../update.sh'], {
         detached: true
     });
+    setTimeout(function() {
+        process.exit(0);
+    }, 5000);
 });
 
 app.post('/settoggles', async (req, res) => {
