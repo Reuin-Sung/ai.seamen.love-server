@@ -1,0 +1,24 @@
+#!/bin/bash
+sudo systemctl stop aiseamen.service
+
+lsof -ti:443 | xargs -r kill -9 || true
+
+lsof -ti:80 | xargs -r kill -9 || true
+
+sudo systemctl stop aiseamen.service
+
+sudo systemctl daemon-reload
+
+git fetch
+
+git pull
+
+npm install
+
+sudo cp -f service.conf /etc/systemd/system/aiseamen.service
+
+sudo systemctl start aiseamen.service
+
+systemctl status aiseamen.service
+
+journalctl -f -u aiseamen.service
