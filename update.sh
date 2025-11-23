@@ -13,7 +13,7 @@ git pull
 
 npm install
 
-sudo cp -f ./service.conf /etc/systemd/system/aiseamen.service.d/override.conf
+sudo cp -f ./service.conf /etc/systemd/system/aiseamen.service
 
 sudo systemctl start aiseamen.service
 
