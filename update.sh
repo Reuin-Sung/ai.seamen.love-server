@@ -7,6 +7,8 @@ lsof -ti:80 | xargs -r kill -9 || true
 
 sudo systemctl stop aiseamen.service
 
+git fetch
+
 git pull
 
 npm install

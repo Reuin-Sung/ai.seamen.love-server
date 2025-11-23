@@ -4,7 +4,7 @@
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "ts-node src/server.ts"
+    "start": "tsx src/server.ts"
   },
   "keywords": [],
   "author": "",
@@ -25,6 +25,7 @@
     "@types/body-parser": "^1.19.5",
     "@types/express": "^5.0.0",
     "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
     "typescript": "^5.4.5"
   }
 }
