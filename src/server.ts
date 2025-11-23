@@ -209,6 +209,13 @@ async function loadAndReturnFile(filename: string, res: any) {
     });
 }
 
+app.post("/updateandrestart", () => {
+    var spawn = require('child_process').spawn;
+    spawn('sh', ['../update.sh'], {
+        detached: true
+    });
+});
+
 app.post('/settoggles', async (req, res) => {
     console.log("setToggles");
     console.log(JSON.stringify(req.body));
