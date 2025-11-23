@@ -8,7 +8,7 @@ import {GoogleGenerativeAI} from "@google/generative-ai";
 import { OpenRouter } from "@openrouter/sdk";
 import {ChatResponseChoice, Message} from "@openrouter/sdk/models";
 
-require('dotenv').config();
+require('dotenv').config({ override: true });
 
 const app = express();
 
