@@ -1,12 +1,16 @@
 {
   "compilerOptions": {
-    "module": "esnext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "target": "esnext",
-    "moduleResolution": "bundler",
     "noImplicitAny": true,
     "removeComments": true,
     "preserveConstEnums": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "esModuleInterop": true
+  },
+  "ts-node": {
+    "esm": true
   },
   "include": ["src/**/*"],
   "exclude": ["**/*.spec.ts"]
