@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "target": "esnext",
+    "module": "EsNext",
+    "moduleResolution": "Bundler",
+    "target": "EsNext",
     "noImplicitAny": true,
     "removeComments": true,
     "preserveConstEnums": true,
