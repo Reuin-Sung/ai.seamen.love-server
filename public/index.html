@@ -97,6 +97,7 @@
   <br />
 
   <input type="checkbox" id="ToggleA" />Toggle a
+  <input type="text" id="AiModel" />Ai Model
   <br />
   <button onclick="sendToggles()">Update toggles</button>
 
@@ -126,6 +127,7 @@
       const promptAmount = document.getElementById('promptAmount').value;
       const responseElement = document.getElementById('response');
       const generatedPromptsElement = document.getElementById('generatedPrompts');
+      const aiModel = document.getElementById("AiModel").value;
       responseElement.textContent = 'Updating...';
 
       const response = await fetch('/regenerate', {
@@ -133,7 +135,7 @@
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({darePrompt, truthPrompt, drinkPrompt, tablePrompt, promptAmount})
+        body: JSON.stringify({darePrompt, truthPrompt, drinkPrompt, tablePrompt, promptAmount, aiModel: aiModel})
       });
 
       if (response.ok) {

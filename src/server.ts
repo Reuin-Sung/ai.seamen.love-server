@@ -6,7 +6,8 @@ import * as https from 'https';
 import {OpenAI} from "openai";
 import {GoogleGenerativeAI} from "@google/generative-ai";
 import { OpenRouter } from "@openrouter/sdk";
-import {ChatResponseChoice, Message} from "@openrouter/sdk/models";
+import {ChatResponse, ChatResponseChoice, Message} from "@openrouter/sdk/models";
+import * as wasi from "node:wasi";
 
 require('dotenv').config();
 
@@ -60,36 +61,46 @@ let isNight = false;
 const UseGemini = true;
 
 async function generatePromptsOpenRouter(prompts: string[], amount: number): Promise<string[]> {
-    let res: string[] = [];
-    for (let i = 0; i < prompts.length; i++) {
-        let messages : ChatResponseChoice[] = [{
-            role: 'system',
-            content: originPrompt,
-        }];
-        
-        messages = await sendOpenRouterMessage(messages);
-        for (let j = 0; j < amount; j++) {
-            messages.push({
-                role: 'user',
-                content: prompts[j]
-            });
-            
-            messages = await sendOpenRouterMessage(messages)
+    try {
+        let res: string[] = [];
+        for (let i = 0; i < prompts.length; i++) {
+            let messages : ChatResponseChoice[] = [{
+                role: 'system',
+                content: originPrompt,
+            }];
+
+            messages = await sendOpenRouterMessage(messages);
+
+            for (let j = 0; j < amount; j++) {
+                messages.push({
+                    role: 'user',
+                    content: prompts[j]
+                });
+
+                messages = await sendOpenRouterMessage(messages);
+            }
+
+            messages.filter((m) => m.message.role != 'user' && m.message.role != 'system').forEach((m) => res.push(m.message.content as string));
         }
-        
-        messages.filter((m) => m.message.role != 'user' && m.message.role != 'system').forEach((m) => res.push(m.message.content as string));
+
+        return res;
     }
-    
-    return res;    
+    catch (error) {
+        console.error('Error generating prompt:', error);
+        return [];
+    }
 }
 
 async function sendOpenRouterMessage(chat: Message[] = []): Promise<ChatResponseChoice[]> {
-    const completion = await openRouter.chat.send({
+    const completion: ChatResponse = await openRouter.chat.send({
         model: openRouterModel,
         messages: chat,
         stream: false,
+    }).catch((error) => {
+        console.error('Error sending message to OpenRouter:', error);
+        return [];
     });
-    
+
     return completion.choices;
 }
 
@@ -228,6 +239,10 @@ app.post('/regenerate', async (req, res) => {
     currentTruthPrompt = `${req.body.truthPrompt || ''}`.trim();
     currentDrinkPrompt = `${req.body.drinkPrompt || ''}`.trim();
     currentTablePrompt = `${req.body.tablePrompt || ''}`.trim();
+    openRouterModel = `${req.body.aiModel}`.trim();
+    if (openRouterModel == "") {
+        openRouterModel = "x-ai/grok-4.1-fast:free";
+    }
 
     var res2 = await regeneratePrompts();
 
@@ -248,6 +263,7 @@ async function regeneratePrompts() {
     let dareP = `${fixedPromptParts.dare} ${currentDarePrompt}`.trim();
     let truthP = `${fixedPromptParts.truth} ${currentTruthPrompt}`.trim();
     let drinkP = `${fixedPromptParts.drink} ${currentDrinkPrompt}`.trim();
+    let aiModel = `${fixedPromptParts.drink} ${currentDrinkPrompt}`.trim();
     //let tableP = `${fixedPromptParts.table} ${currentTablePrompt}`.trim();
     console.log("Generating drinking prompts");
     let a = await generateAndSavePrompts([dareP, truthP, drinkP], "spinthebottle", promptAmount);
