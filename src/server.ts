@@ -63,7 +63,7 @@ async function generatePromptsOpenRouter(prompts: string[], amount: number): Pro
     try {
         let res: string[] = [];
         for (let i = 0; i < prompts.length; i++) {
-            let messages : ChatResponseChoice[] = [{
+            let messages : Message[] = [{
                 role: 'system',
                 content: originPrompt,
             }];
@@ -79,7 +79,7 @@ async function generatePromptsOpenRouter(prompts: string[], amount: number): Pro
                 messages = await sendOpenRouterMessage(messages);
             }
 
-            messages.filter((m) => m.message.role != 'user' && m.message.role != 'system').forEach((m) => res.push(m.message.content as string));
+            messages.filter((m) => m.role != 'user' && m.role != 'system').forEach((m) => res.push(m.content as string));
         }
 
         return res;
@@ -90,17 +90,14 @@ async function generatePromptsOpenRouter(prompts: string[], amount: number): Pro
     }
 }
 
-async function sendOpenRouterMessage(chat: Message[] = []): Promise<ChatResponseChoice[]> {
-    const completion: ChatResponseChoice = await openRouter.chat.send({
-        model: openRouterModel,
+async function sendOpenRouterMessage(chat: Message[] = []): Promise<Message[]> {
+    const completion = await openRouter.chat.send({
+        models: [openRouterModel, "x-ai/grok-4.1-fast:free"],
         messages: chat,
         stream: false,
-    }).catch((error) => {
-        console.error('Error sending message to OpenRouter:', error);
-        return [];
     });
 
-    return completion.choices;
+    return completion.choices.map((choice: ChatResponseChoice) => choice.message);
 }
 
 async function generatePromptsGemini(prompts: string[], amount: number): Promise<string[]> {
