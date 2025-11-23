@@ -7,13 +7,15 @@ lsof -ti:80 | xargs -r kill -9 || true
 
 sudo systemctl stop aiseamen.service
 
+sudo systemctl daemon-reload
+
 git fetch
 
 git pull
 
 npm install
 
-sudo cp -f ./service.conf /etc/systemd/system/aiseamen.service
+sudo cp -f service.conf /etc/systemd/system/aiseamen.service
 
 sudo systemctl start aiseamen.service
 
