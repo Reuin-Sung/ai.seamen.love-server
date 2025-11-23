@@ -211,7 +211,7 @@ async function loadAndReturnFile(filename: string, res: any) {
 
 app.post("/updateandrestart", () => {
     var spawn = require('child_process').spawn;
-    spawn('sh', ['../update.sh'], {
+    spawn('sh', ['../update-node.sh'], {
         detached: true
     });
     setTimeout(function() {
