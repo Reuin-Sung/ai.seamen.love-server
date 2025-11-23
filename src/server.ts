@@ -6,8 +6,7 @@ import * as https from 'https';
 import {OpenAI} from "openai";
 import {GoogleGenerativeAI} from "@google/generative-ai";
 import { OpenRouter } from "@openrouter/sdk";
-import {ChatResponse, ChatResponseChoice, Message} from "@openrouter/sdk/models";
-import * as wasi from "node:wasi";
+import {ChatResponseChoice, Message} from "@openrouter/sdk/models";
 
 require('dotenv').config();
 
@@ -92,7 +91,7 @@ async function generatePromptsOpenRouter(prompts: string[], amount: number): Pro
 }
 
 async function sendOpenRouterMessage(chat: Message[] = []): Promise<ChatResponseChoice[]> {
-    const completion: ChatResponse = await openRouter.chat.send({
+    const completion: ChatResponseChoice = await openRouter.chat.send({
         model: openRouterModel,
         messages: chat,
         stream: false,
