@@ -5,8 +5,9 @@ import * as http from 'http';
 import * as https from 'https';
 import {OpenAI} from "openai";
 import {GoogleGenerativeAI} from "@google/generative-ai";
-import { OpenRouter } from "@openrouter/sdk";
-import {ChatResponseChoice, Message} from "@openrouter/sdk/models";
+import { createOpenRouter } from '@openrouter/ai-sdk-provider'
+import { streamText } from 'ai';
+import { ModelMessage } from '@ai-sdk/provider-utils';
 
 require('dotenv').config({ override: true });
 
@@ -16,10 +17,11 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 
-const openRouter = new OpenRouter({
+const openrouter = createOpenRouter({
     apiKey: process.env.OPENROUTER_API_KEY,
 });
-let openRouterModel = "x-ai/grok-4.1-fast:free";
+
+let openRouterModel = openrouter('x-ai/grok-4.1-fast:free');
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 const geminiModel = genAI.getGenerativeModel({model: "gemini-2.5-flash"});
@@ -63,7 +65,7 @@ async function generatePromptsOpenRouter(prompts: string[], amount: number): Pro
     try {
         let res: string[] = [];
         for (let i = 0; i < prompts.length; i++) {
-            let messages : Message[] = [{
+            let messages : ModelMessage[] = [{
                 role: 'system',
                 content: originPrompt,
             }];
@@ -90,14 +92,14 @@ async function generatePromptsOpenRouter(prompts: string[], amount: number): Pro
     }
 }
 
-async function sendOpenRouterMessage(chat: Message[] = []): Promise<Message[]> {
-    const completion = await openRouter.chat.send({
-        models: [openRouterModel, "x-ai/grok-4.1-fast:free"],
-        messages: chat,
-        stream: false,
-    });
+async function sendOpenRouterMessage(chat: ModelMessage[] = []): Promise<ModelMessage[]> {
+    const text = await (streamText({
+        model: openRouterModel,
+        messages: chat
+    })).text;
 
-    return completion.choices.map((choice: ChatResponseChoice) => choice.message);
+    chat.push({role: 'assistant', content: text});
+    return chat;
 }
 
 async function generatePromptsGemini(prompts: string[], amount: number): Promise<string[]> {
@@ -245,12 +247,16 @@ app.post('/regenerate', async (req, res) => {
     currentTruthPrompt = `${req.body.truthPrompt || ''}`.trim();
     currentDrinkPrompt = `${req.body.drinkPrompt || ''}`.trim();
     currentTablePrompt = `${req.body.tablePrompt || ''}`.trim();
-    openRouterModel = `${req.body.aiModel}`.trim();
-    if (openRouterModel == "") {
-        openRouterModel = "x-ai/grok-4.1-fast:free";
+    let a = `${req.body.aiModel}`.trim();
+    if (a != "") {
+        openRouterModel = openrouter(a);
+    }
+    else
+    {
+        openRouterModel = openrouter('x-ai/grok-4.1-fast:free');
     }
 
-    var res2 = await regeneratePrompts();
+    let res2 = await regeneratePrompts();
 
     res.json({prompts: res2});
 });
