@@ -77,6 +77,8 @@ async function generatePromptsOpenRouter(prompts: string[], amount: number): Pro
                     content: prompts[j]
                 });
 
+                console.log("Sending message: " + prompts[j]);
+
                 messages = await sendOpenRouterMessage(messages);
             }
 
