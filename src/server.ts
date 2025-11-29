@@ -6,8 +6,7 @@ import * as https from 'https';
 import {OpenAI} from "openai";
 import {GoogleGenerativeAI} from "@google/generative-ai";
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
-import { streamText } from 'ai';
-import { ModelMessage } from '@ai-sdk/provider-utils';
+import { streamText, ModelMessage } from 'ai';
 
 require('dotenv').config({ override: true });
 
