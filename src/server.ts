@@ -277,9 +277,66 @@ app.get('/api/world_state', (_, res) => {
     });
 });
 
+// Serve normal map by ID
+app.get('/textures/normal/:id.png', (req, res) => {
+    const id = parseInt(req.params.id);
+    console.log(`[Normal] Request for ID: ${id}`);res.find(t => t.id === id);
+    console.log(`[Normal] Looking for ID ${id}, found texture:`, texture ? JSON.stringify(texture) : 'null');
+    
+    if (!texture || !texture.normalUrl) {
+        return res.status(404).send('Normal map not found - texture has no normalUrl');
+    }
+    
+    const filename = texture.normalUrl.split('/').pop();
+    const filepath = `public/textures/${filename}`;
+    console.log(`[Normal] Serving file: ${filepath}`);
+    
+    if (fs.existsSync(filepath)) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.setHeader('Content-Type', 'image/png');
+        res.sendFile(filepath, { root: '.' });
+    } else {
+        res.status(404).send('Normal map file not found on disk: ' + filepath);
+    }
+});
+
+// Serve smoothness map by ID
+app.get('/textures/smoothness/:id.png', (req, res) => {
+    const id = parseInt(req.params.id);
+    console.log(`[Smooth] Request for ID: ${id}`);res.find(t => t.id === id);
+    console.log(`[Smooth] Looking for ID ${id}, found texture:`, texture ? JSON.stringify(texture) : 'null');
+    
+    if (!texture || !texture.smoothnessUrl) {
+        return res.status(404).send('Smoothness map not found - texture has no smoothnessUrl');
+    }
+    
+    const filename = texture.smoothnessUrl.split('/').pop();
+    const filepath = `public/textures/${filename}`;
+    console.log(`[Smooth] Serving file: ${filepath}`);
+    
+    if (fs.existsSync(filepath)) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.setHeader('Content-Type', 'image/png');
+        res.sendFile(filepath, { root: '.' });
+    } else {
+        res.status(404).send('Smoothness map file not found on disk: ' + filepath);
+    }
+});
+
 // Serve texture by ID (for VRChat to download specific textures)
+// This route must come AFTER normal/smoothness routes since :id matches anything
 app.get('/textures/id/:id.png', (req, res) => {
     const id = parseInt(req.params.id);
+    
+    // If it parsed as NaN, it's probably a _normal or _smoothness request that failed
+    if (isNaN(id)) {
+        return res.status(404).send('Invalid texture ID');
+    }
+    
     const texture = worldState.textures.find(t => t.id === id);
     
     if (!texture) {
@@ -618,62 +675,6 @@ app.post('/api/upload', upload.single('texture'), async (req, res) => {
     } catch (error) {
         console.error('[Texture] Upload error:', error);
         res.status(500).json({ error: "Failed to upload texture" });
-    }
-});
-
-// Serve normal map by ID
-app.get('/textures/id/:id_normal.png', (req, res) => {
-    const idMatch = req.params.id_normal.match(/^(\d+)_normal$/);
-    if (!idMatch) {
-        return res.status(404).send('Invalid normal map request');
-    }
-    
-    const id = parseInt(idMatch[1]);
-    const texture = worldState.textures.find(t => t.id === id);
-    
-    if (!texture || !texture.normalUrl) {
-        return res.status(404).send('Normal map not found');
-    }
-    
-    const filename = texture.normalUrl.split('/').pop();
-    const filepath = `public/textures/${filename}`;
-    
-    if (fs.existsSync(filepath)) {
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
-        res.setHeader('Content-Type', 'image/png');
-        res.sendFile(filepath, { root: '.' });
-    } else {
-        res.status(404).send('Normal map file not found');
-    }
-});
-
-// Serve smoothness map by ID
-app.get('/textures/id/:id_smoothness.png', (req, res) => {
-    const idMatch = req.params.id_smoothness.match(/^(\d+)_smoothness$/);
-    if (!idMatch) {
-        return res.status(404).send('Invalid smoothness map request');
-    }
-    
-    const id = parseInt(idMatch[1]);
-    const texture = worldState.textures.find(t => t.id === id);
-    
-    if (!texture || !texture.smoothnessUrl) {
-        return res.status(404).send('Smoothness map not found');
-    }
-    
-    const filename = texture.smoothnessUrl.split('/').pop();
-    const filepath = `public/textures/${filename}`;
-    
-    if (fs.existsSync(filepath)) {
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
-        res.setHeader('Content-Type', 'image/png');
-        res.sendFile(filepath, { root: '.' });
-    } else {
-        res.status(404).send('Smoothness map file not found');
     }
 });
 
