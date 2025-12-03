@@ -24,6 +24,22 @@ let openRouterModel = openrouter('x-ai/grok-4.1-fast:free');
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 const geminiModel = genAI.getGenerativeModel({model: "gemini-2.5-flash"});
+const geminiImageModel = genAI.getGenerativeModel({model: "gemini-2.0-flash-exp"});
+
+// VRChat Dynamic Texture System
+interface TextureData {
+    albedo: string;
+}
+
+interface WorldState {
+    current_selection: string;
+    textures: { [key: string]: TextureData };
+}
+
+const worldState: WorldState = {
+    current_selection: "none",
+    textures: {}
+};
 
 app.use(bodyParser.json());
 app.use(express.static('public'));
@@ -173,6 +189,111 @@ async function generateAndSavePrompts(prompts: string[], filename: string, amoun
     saveCsv(filename, res);
     return res;
 }
+
+// Selection Ping (Used by VRChat)
+app.get('/api/select/:object_id', (req, res) => {
+    const objectId = req.params.object_id;
+    worldState.current_selection = objectId;
+    
+    // Initialize texture entry if it doesn't exist
+    if (!worldState.textures[objectId]) {
+        worldState.textures[objectId] = {
+            albedo: "https://ai.seamen.love/img/default.png"
+        };
+    }
+    
+    console.log(`[Texture] Selection updated: ${objectId}`);
+    
+    // Prevent VRChat from caching
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
+    res.json({ success: true, selected: objectId });
+});
+
+// Companion Status (Used by Phone Website)
+app.get('/api/status', (_, res) => {
+    res.json({ current_selection: worldState.current_selection });
+});
+
+// World State (Used by VRChat polling)
+app.get('/api/world_state', (_, res) => {
+    res.json(worldState.textures);
+});
+
+// Texture Generation (Used by Phone Website)
+app.post('/api/generate', async (req, res) => {
+    const { prompt, target } = req.body;
+    
+    if (!prompt || !target) {
+        return res.status(400).json({ error: "Missing prompt or target" });
+    }
+    
+    console.log(`[Texture] Generating texture for ${target}: "${prompt}"`);
+    
+    try {
+        // Generate texture using Gemini
+        const texturePrompt = `A seamless tileable texture of: ${prompt}. High quality, suitable for 3D rendering, no text or watermarks.`;
+        
+        const result = await geminiImageModel.generateContent({
+            contents: [{ role: "user", parts: [{ text: texturePrompt }] }],
+            generationConfig: {
+                responseModalities: ["TEXT", "IMAGE"],
+            } as any
+        });
+        
+        // Extract image from response
+        const response = result.response;
+        let imageData: string | null = null;
+        
+        for (const part of response.candidates?.[0]?.content?.parts || []) {
+            if ((part as any).inlineData) {
+                imageData = (part as any).inlineData.data;
+                break;
+            }
+        }
+        
+        if (!imageData) {
+            console.error('[Texture] No image generated');
+            return res.status(500).json({ error: "No image generated" });
+        }
+        
+        // Save image to public folder
+        const timestamp = Date.now();
+        const filename = `${target}_${timestamp}.png`;
+        const filepath = `public/img/${filename}`;
+        
+        // Ensure directory exists
+        if (!fs.existsSync('public/img')) {
+            fs.mkdirSync('public/img', { recursive: true });
+        }
+        
+        // Write base64 image to file
+        fs.writeFileSync(filepath, Buffer.from(imageData, 'base64'));
+        
+        // Update world state
+        const imageUrl = `https://ai.seamen.love/img/${filename}`;
+        worldState.textures[target] = {
+            albedo: imageUrl
+        };
+        
+        // Clear selection after successful generation
+        worldState.current_selection = "none";
+        
+        console.log(`[Texture] Generated: ${imageUrl}`);
+        
+        res.json({ 
+            success: true, 
+            target,
+            albedo: imageUrl
+        });
+        
+    } catch (error) {
+        console.error('[Texture] Generation error:', error);
+        res.status(500).json({ error: "Failed to generate texture" });
+    }
+});
 
 app.get('/toggles', (_, res) => {
     res.setHeader('Content-Type', 'text/csv');

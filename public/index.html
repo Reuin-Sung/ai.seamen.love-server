@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Seamen Drinking API Interface</title>
+  <title>Seamen API Interface</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -77,11 +77,108 @@
     input[type="checkbox"] {
       accent-color: #4CAF50;
     }
+
+    /* Tab styles */
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #444;
+      padding-bottom: 10px;
+    }
+
+    .tab-btn {
+      background-color: #2d2d2d;
+      color: #888;
+      padding: 10px 20px;
+      border: 1px solid #444;
+      border-radius: 4px 4px 0 0;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .tab-btn:hover {
+      background-color: #3d3d3d;
+    }
+
+    .tab-btn.active {
+      background-color: #4CAF50;
+      color: white;
+      border-color: #4CAF50;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Texture tab styles */
+    .status-card {
+      background: #2d2d2d;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 20px;
+      border: 1px solid #444;
+    }
+
+    .status-label {
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 8px;
+    }
+
+    .status-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #4CAF50;
+    }
+
+    .status-value.none {
+      color: #666;
+    }
+
+    .texture-result {
+      margin-top: 15px;
+      padding: 15px;
+      border-radius: 8px;
+      background: #2d2d2d;
+      border: 1px solid #444;
+    }
+
+    .texture-result.success {
+      border-left: 4px solid #4CAF50;
+    }
+
+    .texture-result.error {
+      border-left: 4px solid #e74c3c;
+    }
+
+    .texture-result img {
+      max-width: 100%;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+
+    .waiting-message {
+      text-align: center;
+      padding: 40px 20px;
+      color: #666;
+    }
   </style>
 </head>
 
 <body>
-  <h1>Seamen Drinking API Interface</h1>
+  <h1>Seamen API Interface</h1>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('drinking')">🍺 Drinking Game</button>
+    <button class="tab-btn" onclick="switchTab('texture')">🎨 Texture Controller</button>
+  </div>
+
+  <div id="drinking-tab" class="tab-content active">
 
   <textarea id="darePrompt" rows="3" placeholder="Enter dare prompt..."></textarea>
   <textarea id="truthPrompt" rows="3" placeholder="Enter truth prompt..."></textarea>
@@ -102,9 +199,38 @@
   <button onclick="sendToggles()">Update toggles</button>
 
   <p id="responseToggle"></p>
+  </div>
+
+  <div id="texture-tab" class="tab-content">
+    <div class="status-card">
+      <div class="status-label">Currently Selected Object</div>
+      <div class="status-value" id="texture-selection">Loading...</div>
+    </div>
+    
+    <div id="texture-input-section" style="display: none;">
+      <h2>Generate Texture for <span id="texture-target-name"></span></h2>
+      <textarea id="texture-prompt" rows="3" placeholder="Describe your texture... (e.g., 'red brick wall', 'wooden planks', 'galaxy nebula')"></textarea>
+      <button onclick="generateTexture()">Generate Texture</button>
+      <div id="texture-result"></div>
+    </div>
+    
+    <div class="waiting-message" id="texture-waiting-message">
+      <p>👆 Select an object in VRChat to begin</p>
+    </div>
+  </div>
 
 
   <script>
+    // Tab switching
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      
+      document.getElementById(tabName + '-tab').classList.add('active');
+      event.target.classList.add('active');
+    }
+
+    // Drinking game functions
     async function loadCurrentPrompts() {
       const response = await fetch('/current-prompts');
       if (response.ok) {
@@ -172,6 +298,89 @@
     }
 
     window.onload = loadCurrentPrompts;
+
+    // Texture controller functions
+    let currentTextureSelection = 'none';
+    
+    async function pollTextureStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        
+        const selectionEl = document.getElementById('texture-selection');
+        const inputSection = document.getElementById('texture-input-section');
+        const waitingMessage = document.getElementById('texture-waiting-message');
+        const targetName = document.getElementById('texture-target-name');
+        
+        currentTextureSelection = data.current_selection;
+        
+        if (currentTextureSelection === 'none') {
+          selectionEl.textContent = 'None';
+          selectionEl.className = 'status-value none';
+          inputSection.style.display = 'none';
+          waitingMessage.style.display = 'block';
+        } else {
+          selectionEl.textContent = currentTextureSelection;
+          selectionEl.className = 'status-value';
+          targetName.textContent = currentTextureSelection;
+          inputSection.style.display = 'block';
+          waitingMessage.style.display = 'none';
+        }
+      } catch (err) {
+        console.error('Poll error:', err);
+      }
+      
+      setTimeout(pollTextureStatus, 2000);
+    }
+    
+    async function generateTexture() {
+      const prompt = document.getElementById('texture-prompt').value.trim();
+      const btn = event.target;
+      const resultEl = document.getElementById('texture-result');
+      
+      if (!prompt) {
+        resultEl.innerHTML = '<div class="texture-result error">Please enter a texture description</div>';
+        return;
+      }
+      
+      btn.disabled = true;
+      btn.textContent = 'Generating...';
+      resultEl.innerHTML = '';
+      
+      try {
+        const res = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: prompt,
+            target: currentTextureSelection
+          })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+          resultEl.innerHTML = `
+            <div class="texture-result success">
+              <strong>✓ Texture generated!</strong><br>
+              <small>It will appear in VRChat within 10 seconds.</small>
+              <img src="${data.albedo}" alt="Generated texture">
+            </div>
+          `;
+          document.getElementById('texture-prompt').value = '';
+        } else {
+          resultEl.innerHTML = `<div class="texture-result error">Error: ${data.error}</div>`;
+        }
+      } catch (err) {
+        resultEl.innerHTML = `<div class="texture-result error">Failed to connect to server</div>`;
+      }
+      
+      btn.disabled = false;
+      btn.textContent = 'Generate Texture';
+    }
+    
+    // Start texture polling
+    pollTextureStatus();
   </script>
 </body>
 
