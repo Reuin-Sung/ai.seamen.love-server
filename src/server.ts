@@ -481,7 +481,8 @@ async function generateNormalMap(inputBuffer: Buffer, outputPath: string): Promi
             
             // Calculate gradients
             const dx = (left - right) * strength;
-            const dy = (up - down) * strength;
+            // Unity uses DirectX convention - flip Y compared to OpenGL
+            const dy = (down - up) * strength; // Flipped for Unity/DirectX
             const dz = 1.0;
             
             // Normalize
@@ -491,9 +492,10 @@ async function generateNormalMap(inputBuffer: Buffer, outputPath: string): Promi
             const nz = dz / length;
             
             // Convert to 0-255 range (normal maps store as RGB)
+            // Unity Standard shader reads these directly as tangent-space normals
             const idx = (y * width + x) * 3;
             normalData[idx + 0] = Math.floor((nx * 0.5 + 0.5) * 255); // R = X
-            normalData[idx + 1] = Math.floor((ny * 0.5 + 0.5) * 255); // G = Y
+            normalData[idx + 1] = Math.floor((ny * 0.5 + 0.5) * 255); // G = Y (flipped above)
             normalData[idx + 2] = Math.floor((nz * 0.5 + 0.5) * 255); // B = Z
         }
     }
