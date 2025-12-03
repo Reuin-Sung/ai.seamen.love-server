@@ -272,7 +272,10 @@ app.get('/textures/id/:id.png', (req, res) => {
     const filepath = `public/textures/${filename}`;
     
     if (fs.existsSync(filepath)) {
-        res.setHeader('Cache-Control', 'public, max-age=31536000');  // Cache forever - ID is stable
+        // Disable caching so VRChat re-downloads if we reuse the ID
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
         res.setHeader('Content-Type', 'image/png');
         res.sendFile(filepath, { root: '.' });
     } else {
@@ -335,6 +338,11 @@ app.post('/api/generate', async (req, res) => {
             id: worldState.nextId++,
             url: textureUrl
         };
+        
+        // Recycle IDs 1-20
+        if (worldState.nextId > 20) {
+            worldState.nextId = 1;
+        }
         
         // Add to front of array
         worldState.textures.unshift(textureEntry);
