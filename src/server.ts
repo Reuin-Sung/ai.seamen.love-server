@@ -204,7 +204,7 @@ app.get('/api/select', (_, res) => {
 app.get('/api/status', (_, res) => {
     res.json({
         textures: worldState.textures,
-        selectedIndex: worldState.selectedIndex
+        selectedId: worldState.selectedId
     });
 });
 
