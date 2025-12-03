@@ -196,6 +196,22 @@
       box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
     }
 
+    .texture-item {
+      position: relative;
+    }
+
+    .texture-id-badge {
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      background: rgba(0,0,0,0.7);
+      color: #4CAF50;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
     .gallery-empty {
       grid-column: 1 / -1;
       text-align: center;
@@ -353,8 +369,8 @@
     window.onload = loadCurrentPrompts;
 
     // Texture controller functions
-    let textures = [];
-    let selectedIndex = 0;
+    let textures = [];  // Array of {id, url}
+    let selectedId = -1;
     
     async function pollTextureStatus() {
       try {
@@ -362,7 +378,7 @@
         const data = await res.json();
         
         textures = data.textures || [];
-        selectedIndex = data.selectedIndex || 0;
+        selectedId = data.selectedId;
         
         renderGallery();
       } catch (err) {
@@ -383,32 +399,44 @@
         return;
       }
       
-      // Show selected preview
-      preview.style.display = 'block';
-      previewImg.src = textures[selectedIndex] + '?t=' + Date.now();
+      // Find selected texture
+      const selectedTexture = textures.find(t => t.id === selectedId);
       
-      // Render thumbnails
-      gallery.innerHTML = textures.map((url, i) => `
-        <img 
-          src="${url}" 
-          class="texture-thumb ${i === selectedIndex ? 'selected' : ''}"
-          onclick="selectTexture(${i})"
-          alt="Texture ${i + 1}"
-        >
+      // Show selected preview
+      if (selectedTexture) {
+        preview.style.display = 'block';
+        previewImg.src = selectedTexture.url + '?t=' + Date.now();
+        document.querySelector('#selected-preview p').innerHTML = `Currently Selected: <span style="color:#4CAF50">#${selectedId}</span>`;
+      } else {
+        preview.style.display = 'none';
+      }
+      
+      // Render thumbnails with ID badges
+      gallery.innerHTML = textures.map(t => `
+        <div class="texture-item">
+          <span class="texture-id-badge">#${t.id}</span>
+          <img 
+            src="${t.url}" 
+            class="texture-thumb ${t.id === selectedId ? 'selected' : ''}"
+            onclick="selectTexture(${t.id})"
+            alt="Texture ID ${t.id}"
+            title="ID: ${t.id}"
+          >
+        </div>
       `).join('');
     }
     
-    async function selectTexture(index) {
+    async function selectTexture(id) {
       try {
         const res = await fetch('/api/select_texture', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ index: index })
+          body: JSON.stringify({ id: id })
         });
         
         const data = await res.json();
         if (data.success) {
-          selectedIndex = index;
+          selectedId = id;
           renderGallery();
         }
       } catch (err) {
@@ -442,7 +470,7 @@
         if (data.success) {
           resultEl.innerHTML = `
             <div class="texture-result success">
-              <strong>✓ Texture generated!</strong><br>
+              <strong>✓ Texture generated! (ID: ${data.texture.id})</strong><br>
               <small>Use the wand in VRChat to apply it to objects.</small>
             </div>
           `;
@@ -450,7 +478,7 @@
           
           // Update gallery immediately
           textures = data.textures;
-          selectedIndex = data.selectedIndex;
+          selectedId = data.selectedId;
           renderGallery();
         } else {
           resultEl.innerHTML = `<div class="texture-result error">Error: ${data.error}</div>`;

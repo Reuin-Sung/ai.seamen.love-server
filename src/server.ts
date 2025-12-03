@@ -27,16 +27,23 @@ const geminiModel = genAI.getGenerativeModel({model: "gemini-2.5-flash"});
 const geminiImageModel = genAI.getGenerativeModel({model: "gemini-2.0-flash-exp"});
 
 // VRChat Dynamic Texture System
+interface TextureEntry {
+    id: number;      // Stable ID that never changes
+    url: string;     // URL to the texture file
+}
+
 interface WorldState {
-    textures: string[];  // Array of texture URLs (most recent first)
-    selectedIndex: number;  // Which texture is selected for applying
+    textures: TextureEntry[];  // Array of textures (most recent first)
+    selectedId: number;        // Which texture ID is selected for applying
+    nextId: number;            // Next ID to assign
     maxTextures: number;
 }
 
 const worldState: WorldState = {
     textures: [],
-    selectedIndex: 0,
-    maxTextures: 10
+    selectedId: -1,
+    nextId: 1,
+    maxTextures: 20
 };
 
 app.use(bodyParser.json());
@@ -203,28 +210,29 @@ app.get('/api/status', (_, res) => {
 
 // Select which texture to apply (Used by Phone Website)
 app.post('/api/select_texture', (req, res) => {
-    const { index } = req.body;
+    const { id } = req.body;
     
-    if (typeof index !== 'number' || index < 0 || index >= worldState.textures.length) {
-        return res.status(400).json({ error: "Invalid texture index" });
+    const texture = worldState.textures.find(t => t.id === id);
+    if (!texture) {
+        return res.status(400).json({ error: "Invalid texture id" });
     }
     
-    worldState.selectedIndex = index;
-    console.log(`[Texture] Selected texture index: ${index}`);
+    worldState.selectedId = id;
+    console.log(`[Texture] Selected texture ID: ${id}`);
     
-    res.json({ success: true, selectedIndex: index });
+    res.json({ success: true, selectedId: id });
 });
 
 // Serve current selected texture at fixed URL (Used by VRChat)
 app.get('/textures/current.png', (req, res) => {
-    const currentTexture = worldState.textures[worldState.selectedIndex];
+    const currentTexture = worldState.textures.find(t => t.id === worldState.selectedId);
     
     if (!currentTexture) {
         return res.status(404).send('No texture selected');
     }
     
     // Extract filename from URL and serve the file
-    const filename = currentTexture.split('/').pop();
+    const filename = currentTexture.url.split('/').pop();
     const filepath = `public/textures/${filename}`;
     
     if (fs.existsSync(filepath)) {
@@ -244,13 +252,32 @@ app.get('/api/world_state', (_, res) => {
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     
-    // Return current selected texture URL for VRChat to download
-    const currentTexture = worldState.textures[worldState.selectedIndex] || "";
     res.json({
-        textureUrl: currentTexture,
-        selectedIndex: worldState.selectedIndex,
+        textures: worldState.textures,  // Array of {id, url}
+        selectedId: worldState.selectedId,
         textureCount: worldState.textures.length
     });
+});
+
+// Serve texture by ID (for VRChat to download specific textures)
+app.get('/textures/id/:id.png', (req, res) => {
+    const id = parseInt(req.params.id);
+    const texture = worldState.textures.find(t => t.id === id);
+    
+    if (!texture) {
+        return res.status(404).send('Texture not found');
+    }
+    
+    const filename = texture.url.split('/').pop();
+    const filepath = `public/textures/${filename}`;
+    
+    if (fs.existsSync(filepath)) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000');  // Cache forever - ID is stable
+        res.setHeader('Content-Type', 'image/png');
+        res.sendFile(filepath, { root: '.' });
+    } else {
+        res.status(404).send('Texture file not found');
+    }
 });
 
 // Texture Generation (Used by Phone Website)
@@ -303,8 +330,14 @@ app.post('/api/generate', async (req, res) => {
         
         const textureUrl = `https://ai.seamen.love/textures/${filename}`;
         
+        // Create texture entry with stable ID
+        const textureEntry: TextureEntry = {
+            id: worldState.nextId++,
+            url: textureUrl
+        };
+        
         // Add to front of array
-        worldState.textures.unshift(textureUrl);
+        worldState.textures.unshift(textureEntry);
         
         // Keep only the most recent textures
         if (worldState.textures.length > worldState.maxTextures) {
@@ -312,15 +345,15 @@ app.post('/api/generate', async (req, res) => {
         }
         
         // Auto-select the new texture
-        worldState.selectedIndex = 0;
+        worldState.selectedId = textureEntry.id;
         
-        console.log(`[Texture] Generated: ${textureUrl} (${worldState.textures.length} total)`);
+        console.log(`[Texture] Generated ID ${textureEntry.id}: ${textureUrl} (${worldState.textures.length} total)`);
         
         res.json({ 
             success: true, 
-            textureUrl: textureUrl,
+            texture: textureEntry,
             textures: worldState.textures,
-            selectedIndex: worldState.selectedIndex
+            selectedId: worldState.selectedId
         });
         
     } catch (error) {
