@@ -27,18 +27,16 @@ const geminiModel = genAI.getGenerativeModel({model: "gemini-2.5-flash"});
 const geminiImageModel = genAI.getGenerativeModel({model: "gemini-2.0-flash-exp"});
 
 // VRChat Dynamic Texture System
-interface TextureData {
-    albedo: string;
-}
-
 interface WorldState {
-    current_selection: string;
-    textures: { [key: string]: TextureData };
+    selected: boolean;
+    textureUrl: string;
+    version: number;
 }
 
 const worldState: WorldState = {
-    current_selection: "none",
-    textures: {}
+    selected: false,
+    textureUrl: "",
+    version: 0
 };
 
 app.use(bodyParser.json());
@@ -191,46 +189,46 @@ async function generateAndSavePrompts(prompts: string[], filename: string, amoun
 }
 
 // Selection Ping (Used by VRChat)
-app.get('/api/select/:object_id', (req, res) => {
-    const objectId = req.params.object_id;
-    worldState.current_selection = objectId;
+app.get('/api/select', (_, res) => {
+    worldState.selected = true;
     
-    // Initialize texture entry if it doesn't exist
-    if (!worldState.textures[objectId]) {
-        worldState.textures[objectId] = {
-            albedo: "https://ai.seamen.love/img/default.png"
-        };
-    }
-    
-    console.log(`[Texture] Selection updated: ${objectId}`);
+    console.log(`[Texture] Object selected`);
     
     // Prevent VRChat from caching
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     
-    res.json({ success: true, selected: objectId });
+    res.json({ success: true });
 });
 
 // Companion Status (Used by Phone Website)
 app.get('/api/status', (_, res) => {
-    res.json({ current_selection: worldState.current_selection });
+    res.json({ selected: worldState.selected });
 });
 
 // World State (Used by VRChat polling)
 app.get('/api/world_state', (_, res) => {
-    res.json(worldState.textures);
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
+    res.json(worldState);
 });
 
 // Texture Generation (Used by Phone Website)
 app.post('/api/generate', async (req, res) => {
-    const { prompt, target } = req.body;
+    const { prompt } = req.body;
     
-    if (!prompt || !target) {
-        return res.status(400).json({ error: "Missing prompt or target" });
+    if (!prompt) {
+        return res.status(400).json({ error: "Missing prompt" });
     }
     
-    console.log(`[Texture] Generating texture for ${target}: "${prompt}"`);
+    if (!worldState.selected) {
+        return res.status(400).json({ error: "No object selected in VRChat" });
+    }
+    
+    console.log(`[Texture] Generating texture: "${prompt}"`);
     
     try {
         // Generate texture using Gemini
@@ -259,34 +257,26 @@ app.post('/api/generate', async (req, res) => {
             return res.status(500).json({ error: "No image generated" });
         }
         
-        // Save image to public folder
-        const timestamp = Date.now();
-        const filename = `${target}_${timestamp}.png`;
-        const filepath = `public/img/${filename}`;
-        
         // Ensure directory exists
-        if (!fs.existsSync('public/img')) {
-            fs.mkdirSync('public/img', { recursive: true });
+        if (!fs.existsSync('public/textures')) {
+            fs.mkdirSync('public/textures', { recursive: true });
         }
         
-        // Write base64 image to file
+        // Save to fixed filename (overwrite)
+        const filepath = 'public/textures/generated.png';
         fs.writeFileSync(filepath, Buffer.from(imageData, 'base64'));
         
-        // Update world state
-        const imageUrl = `https://ai.seamen.love/img/${filename}`;
-        worldState.textures[target] = {
-            albedo: imageUrl
-        };
+        // Update world state - increment version so VRChat knows to re-download
+        worldState.textureUrl = `https://ai.seamen.love/textures/generated.png`;
+        worldState.version++;
+        worldState.selected = false; // Clear selection
         
-        // Clear selection after successful generation
-        worldState.current_selection = "none";
-        
-        console.log(`[Texture] Generated: ${imageUrl}`);
+        console.log(`[Texture] Generated v${worldState.version}: ${worldState.textureUrl}`);
         
         res.json({ 
             success: true, 
-            target,
-            albedo: imageUrl
+            textureUrl: worldState.textureUrl,
+            version: worldState.version
         });
         
     } catch (error) {

@@ -208,7 +208,7 @@
     </div>
     
     <div id="texture-input-section" style="display: none;">
-      <h2>Generate Texture for <span id="texture-target-name"></span></h2>
+      <h2>Generate Texture</h2>
       <textarea id="texture-prompt" rows="3" placeholder="Describe your texture... (e.g., 'red brick wall', 'wooden planks', 'galaxy nebula')"></textarea>
       <button onclick="generateTexture()">Generate Texture</button>
       <div id="texture-result"></div>
@@ -300,7 +300,7 @@
     window.onload = loadCurrentPrompts;
 
     // Texture controller functions
-    let currentTextureSelection = 'none';
+    let isSelected = false;
     
     async function pollTextureStatus() {
       try {
@@ -310,19 +310,17 @@
         const selectionEl = document.getElementById('texture-selection');
         const inputSection = document.getElementById('texture-input-section');
         const waitingMessage = document.getElementById('texture-waiting-message');
-        const targetName = document.getElementById('texture-target-name');
         
-        currentTextureSelection = data.current_selection;
+        isSelected = data.selected;
         
-        if (currentTextureSelection === 'none') {
+        if (!isSelected) {
           selectionEl.textContent = 'None';
           selectionEl.className = 'status-value none';
           inputSection.style.display = 'none';
           waitingMessage.style.display = 'block';
         } else {
-          selectionEl.textContent = currentTextureSelection;
+          selectionEl.textContent = 'Object Selected ✓';
           selectionEl.className = 'status-value';
-          targetName.textContent = currentTextureSelection;
           inputSection.style.display = 'block';
           waitingMessage.style.display = 'none';
         }
@@ -351,10 +349,7 @@
         const res = await fetch('/api/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt: prompt,
-            target: currentTextureSelection
-          })
+          body: JSON.stringify({ prompt: prompt })
         });
         
         const data = await res.json();
@@ -363,8 +358,8 @@
           resultEl.innerHTML = `
             <div class="texture-result success">
               <strong>✓ Texture generated!</strong><br>
-              <small>It will appear in VRChat within 10 seconds.</small>
-              <img src="${data.albedo}" alt="Generated texture">
+              <small>It will appear in VRChat within a few seconds.</small>
+              <img src="${data.textureUrl}?v=${data.version}" alt="Generated texture">
             </div>
           `;
           document.getElementById('texture-prompt').value = '';
