@@ -28,15 +28,15 @@ const geminiImageModel = genAI.getGenerativeModel({model: "gemini-2.0-flash-exp"
 
 // VRChat Dynamic Texture System
 interface WorldState {
-    selected: boolean;
-    textureUrl: string;
-    version: number;
+    textures: string[];  // Array of texture URLs (most recent first)
+    selectedIndex: number;  // Which texture is selected for applying
+    maxTextures: number;
 }
 
 const worldState: WorldState = {
-    selected: false,
-    textureUrl: "",
-    version: 0
+    textures: [],
+    selectedIndex: 0,
+    maxTextures: 10
 };
 
 app.use(bodyParser.json());
@@ -188,23 +188,54 @@ async function generateAndSavePrompts(prompts: string[], filename: string, amoun
     return res;
 }
 
-// Selection Ping (Used by VRChat)
+// Selection Ping - No longer needed, wand just applies directly
 app.get('/api/select', (_, res) => {
-    worldState.selected = true;
-    
-    console.log(`[Texture] Object selected`);
-    
-    // Prevent VRChat from caching
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    
     res.json({ success: true });
 });
 
-// Companion Status (Used by Phone Website)
+// Get all textures and current selection (Used by Phone Website)
 app.get('/api/status', (_, res) => {
-    res.json({ selected: worldState.selected });
+    res.json({
+        textures: worldState.textures,
+        selectedIndex: worldState.selectedIndex
+    });
+});
+
+// Select which texture to apply (Used by Phone Website)
+app.post('/api/select_texture', (req, res) => {
+    const { index } = req.body;
+    
+    if (typeof index !== 'number' || index < 0 || index >= worldState.textures.length) {
+        return res.status(400).json({ error: "Invalid texture index" });
+    }
+    
+    worldState.selectedIndex = index;
+    console.log(`[Texture] Selected texture index: ${index}`);
+    
+    res.json({ success: true, selectedIndex: index });
+});
+
+// Serve current selected texture at fixed URL (Used by VRChat)
+app.get('/textures/current.png', (req, res) => {
+    const currentTexture = worldState.textures[worldState.selectedIndex];
+    
+    if (!currentTexture) {
+        return res.status(404).send('No texture selected');
+    }
+    
+    // Extract filename from URL and serve the file
+    const filename = currentTexture.split('/').pop();
+    const filepath = `public/textures/${filename}`;
+    
+    if (fs.existsSync(filepath)) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.setHeader('Content-Type', 'image/png');
+        res.sendFile(filepath, { root: '.' });
+    } else {
+        res.status(404).send('Texture file not found');
+    }
 });
 
 // World State (Used by VRChat polling)
@@ -213,7 +244,13 @@ app.get('/api/world_state', (_, res) => {
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     
-    res.json(worldState);
+    // Return current selected texture URL for VRChat to download
+    const currentTexture = worldState.textures[worldState.selectedIndex] || "";
+    res.json({
+        textureUrl: currentTexture,
+        selectedIndex: worldState.selectedIndex,
+        textureCount: worldState.textures.length
+    });
 });
 
 // Texture Generation (Used by Phone Website)
@@ -222,10 +259,6 @@ app.post('/api/generate', async (req, res) => {
     
     if (!prompt) {
         return res.status(400).json({ error: "Missing prompt" });
-    }
-    
-    if (!worldState.selected) {
-        return res.status(400).json({ error: "No object selected in VRChat" });
     }
     
     console.log(`[Texture] Generating texture: "${prompt}"`);
@@ -262,21 +295,32 @@ app.post('/api/generate', async (req, res) => {
             fs.mkdirSync('public/textures', { recursive: true });
         }
         
-        // Save to fixed filename (overwrite)
-        const filepath = 'public/textures/generated.png';
+        // Save with timestamp filename
+        const timestamp = Date.now();
+        const filename = `texture_${timestamp}.png`;
+        const filepath = `public/textures/${filename}`;
         fs.writeFileSync(filepath, Buffer.from(imageData, 'base64'));
         
-        // Update world state - increment version so VRChat knows to re-download
-        worldState.textureUrl = `https://ai.seamen.love/textures/generated.png`;
-        worldState.version++;
-        worldState.selected = false; // Clear selection
+        const textureUrl = `https://ai.seamen.love/textures/${filename}`;
         
-        console.log(`[Texture] Generated v${worldState.version}: ${worldState.textureUrl}`);
+        // Add to front of array
+        worldState.textures.unshift(textureUrl);
+        
+        // Keep only the most recent textures
+        if (worldState.textures.length > worldState.maxTextures) {
+            worldState.textures = worldState.textures.slice(0, worldState.maxTextures);
+        }
+        
+        // Auto-select the new texture
+        worldState.selectedIndex = 0;
+        
+        console.log(`[Texture] Generated: ${textureUrl} (${worldState.textures.length} total)`);
         
         res.json({ 
             success: true, 
-            textureUrl: worldState.textureUrl,
-            version: worldState.version
+            textureUrl: textureUrl,
+            textures: worldState.textures,
+            selectedIndex: worldState.selectedIndex
         });
         
     } catch (error) {

@@ -167,6 +167,58 @@
       padding: 40px 20px;
       color: #666;
     }
+
+    /* Texture gallery styles */
+    .texture-gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 10px;
+      margin: 15px 0;
+    }
+
+    .texture-thumb {
+      aspect-ratio: 1;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 3px solid transparent;
+      transition: all 0.2s;
+      object-fit: cover;
+      width: 100%;
+    }
+
+    .texture-thumb:hover {
+      border-color: #666;
+      transform: scale(1.05);
+    }
+
+    .texture-thumb.selected {
+      border-color: #4CAF50;
+      box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+    }
+
+    .gallery-empty {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 30px;
+      color: #666;
+    }
+
+    .selected-preview {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .selected-preview img {
+      max-width: 200px;
+      border-radius: 8px;
+      border: 3px solid #4CAF50;
+    }
+
+    .selected-preview p {
+      margin-top: 10px;
+      color: #4CAF50;
+      font-weight: bold;
+    }
   </style>
 </head>
 
@@ -202,20 +254,21 @@
   </div>
 
   <div id="texture-tab" class="tab-content">
-    <div class="status-card">
-      <div class="status-label">Currently Selected Object</div>
-      <div class="status-value" id="texture-selection">Loading...</div>
+    <h2>🎨 Generate Texture</h2>
+    <textarea id="texture-prompt" rows="3" placeholder="Describe your texture... (e.g., 'red brick wall', 'wooden planks', 'galaxy nebula')"></textarea>
+    <button onclick="generateTexture()">Generate Texture</button>
+    <div id="texture-result"></div>
+    
+    <h2>📦 Texture Gallery</h2>
+    <p style="color: #888; margin-bottom: 10px;">Click a texture to select it, then use the wand in VRChat to apply it to objects.</p>
+    
+    <div class="selected-preview" id="selected-preview" style="display: none;">
+      <p>Currently Selected:</p>
+      <img id="selected-preview-img" src="" alt="Selected texture">
     </div>
     
-    <div id="texture-input-section" style="display: none;">
-      <h2>Generate Texture</h2>
-      <textarea id="texture-prompt" rows="3" placeholder="Describe your texture... (e.g., 'red brick wall', 'wooden planks', 'galaxy nebula')"></textarea>
-      <button onclick="generateTexture()">Generate Texture</button>
-      <div id="texture-result"></div>
-    </div>
-    
-    <div class="waiting-message" id="texture-waiting-message">
-      <p>👆 Select an object in VRChat to begin</p>
+    <div class="texture-gallery" id="texture-gallery">
+      <div class="gallery-empty">No textures generated yet. Create one above!</div>
     </div>
   </div>
 
@@ -300,35 +353,67 @@
     window.onload = loadCurrentPrompts;
 
     // Texture controller functions
-    let isSelected = false;
+    let textures = [];
+    let selectedIndex = 0;
     
     async function pollTextureStatus() {
       try {
         const res = await fetch('/api/status');
         const data = await res.json();
         
-        const selectionEl = document.getElementById('texture-selection');
-        const inputSection = document.getElementById('texture-input-section');
-        const waitingMessage = document.getElementById('texture-waiting-message');
+        textures = data.textures || [];
+        selectedIndex = data.selectedIndex || 0;
         
-        isSelected = data.selected;
-        
-        if (!isSelected) {
-          selectionEl.textContent = 'None';
-          selectionEl.className = 'status-value none';
-          inputSection.style.display = 'none';
-          waitingMessage.style.display = 'block';
-        } else {
-          selectionEl.textContent = 'Object Selected ✓';
-          selectionEl.className = 'status-value';
-          inputSection.style.display = 'block';
-          waitingMessage.style.display = 'none';
-        }
+        renderGallery();
       } catch (err) {
         console.error('Poll error:', err);
       }
       
-      setTimeout(pollTextureStatus, 2000);
+      setTimeout(pollTextureStatus, 3000);
+    }
+    
+    function renderGallery() {
+      const gallery = document.getElementById('texture-gallery');
+      const preview = document.getElementById('selected-preview');
+      const previewImg = document.getElementById('selected-preview-img');
+      
+      if (textures.length === 0) {
+        gallery.innerHTML = '<div class="gallery-empty">No textures generated yet. Create one above!</div>';
+        preview.style.display = 'none';
+        return;
+      }
+      
+      // Show selected preview
+      preview.style.display = 'block';
+      previewImg.src = textures[selectedIndex] + '?t=' + Date.now();
+      
+      // Render thumbnails
+      gallery.innerHTML = textures.map((url, i) => `
+        <img 
+          src="${url}" 
+          class="texture-thumb ${i === selectedIndex ? 'selected' : ''}"
+          onclick="selectTexture(${i})"
+          alt="Texture ${i + 1}"
+        >
+      `).join('');
+    }
+    
+    async function selectTexture(index) {
+      try {
+        const res = await fetch('/api/select_texture', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ index: index })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+          selectedIndex = index;
+          renderGallery();
+        }
+      } catch (err) {
+        console.error('Select error:', err);
+      }
     }
     
     async function generateTexture() {
@@ -358,11 +443,15 @@
           resultEl.innerHTML = `
             <div class="texture-result success">
               <strong>✓ Texture generated!</strong><br>
-              <small>It will appear in VRChat within a few seconds.</small>
-              <img src="${data.textureUrl}?v=${data.version}" alt="Generated texture">
+              <small>Use the wand in VRChat to apply it to objects.</small>
             </div>
           `;
           document.getElementById('texture-prompt').value = '';
+          
+          // Update gallery immediately
+          textures = data.textures;
+          selectedIndex = data.selectedIndex;
+          renderGallery();
         } else {
           resultEl.innerHTML = `<div class="texture-result error">Error: ${data.error}</div>`;
         }
