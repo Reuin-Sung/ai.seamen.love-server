@@ -461,7 +461,9 @@ async function generateNormalMap(inputBuffer: Buffer, outputPath: string): Promi
         .toBuffer();
     
     // Generate normal map using Sobel-like operators
-    const normalData = Buffer.alloc(width * height * 3);
+    // We will output 4 channels (RGBA) to match Unity's DXT5nm format expectation
+    // Unity UnpackNormal expects: A=X, G=Y, R=1, B=1
+    const normalData = Buffer.alloc(width * height * 4);
     const strength = 2.0; // Normal map strength
     
     for (let y = 0; y < height; y++) {
@@ -489,19 +491,25 @@ async function generateNormalMap(inputBuffer: Buffer, outputPath: string): Promi
             const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
             const nx = dx / length;
             const ny = dy / length;
-            const nz = dz / length;
+            // nz is not stored in DXT5nm but used for normalization
             
-            // Convert to 0-255 range (normal maps store as RGB)
-            // Unity Standard shader reads these directly as tangent-space normals
-            const idx = (y * width + x) * 3;
-            normalData[idx + 0] = Math.floor((nx * 0.5 + 0.5) * 255); // R = X
-            normalData[idx + 1] = Math.floor((ny * 0.5 + 0.5) * 255); // G = Y (flipped above)
-            normalData[idx + 2] = Math.floor((nz * 0.5 + 0.5) * 255); // B = Z
+            // Convert to 0-255 range
+            // Unity DXT5nm packing:
+            // R = 1 (unused/ignored)
+            // G = Y (Green channel stores Y component)
+            // B = 1 (unused/ignored)
+            // A = X (Alpha channel stores X component)
+            
+            const idx = (y * width + x) * 4;
+            normalData[idx + 0] = 255; // R
+            normalData[idx + 1] = Math.floor((ny * 0.5 + 0.5) * 255); // G = Y
+            normalData[idx + 2] = 255; // B
+            normalData[idx + 3] = Math.floor((nx * 0.5 + 0.5) * 255); // A = X
         }
     }
     
-    // Save as PNG
-    await sharp(normalData, { raw: { width, height, channels: 3 } })
+    // Save as PNG with Alpha channel
+    await sharp(normalData, { raw: { width, height, channels: 4 } })
         .png()
         .toFile(outputPath);
 }
