@@ -280,7 +280,8 @@ app.get('/api/world_state', (_, res) => {
 // Serve normal map by ID
 app.get('/textures/normal/:id.png', (req, res) => {
     const id = parseInt(req.params.id);
-    console.log(`[Normal] Request for ID: ${id}`);res.find(t => t.id === id);
+    console.log(`[Normal] Request for ID: ${id}`);
+    const texture = worldState.textures.find(t => t.id === id);
     console.log(`[Normal] Looking for ID ${id}, found texture:`, texture ? JSON.stringify(texture) : 'null');
     
     if (!texture || !texture.normalUrl) {
@@ -305,7 +306,8 @@ app.get('/textures/normal/:id.png', (req, res) => {
 // Serve smoothness map by ID
 app.get('/textures/smoothness/:id.png', (req, res) => {
     const id = parseInt(req.params.id);
-    console.log(`[Smooth] Request for ID: ${id}`);res.find(t => t.id === id);
+    console.log(`[Smooth] Request for ID: ${id}`);
+    const texture = worldState.textures.find(t => t.id === id);
     console.log(`[Smooth] Looking for ID ${id}, found texture:`, texture ? JSON.stringify(texture) : 'null');
     
     if (!texture || !texture.smoothnessUrl) {
