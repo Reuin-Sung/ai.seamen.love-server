@@ -212,6 +212,129 @@
       font-weight: bold;
     }
 
+    .texture-upload-btn {
+      position: absolute;
+      bottom: 5px;
+      right: 5px;
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .texture-item:hover .texture-upload-btn {
+      opacity: 1;
+    }
+
+    .texture-upload-btn:hover {
+      background: #4CAF50;
+    }
+
+    .upload-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .upload-modal.active {
+      display: flex;
+    }
+
+    .upload-modal-content {
+      background: #2d2d2d;
+      padding: 30px;
+      border-radius: 12px;
+      max-width: 400px;
+      width: 90%;
+      border: 1px solid #444;
+    }
+
+    .upload-modal h3 {
+      margin-top: 0;
+      color: #4CAF50;
+    }
+
+    .upload-dropzone {
+      border: 2px dashed #444;
+      border-radius: 8px;
+      padding: 40px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin: 15px 0;
+    }
+
+    .upload-dropzone:hover, .upload-dropzone.dragover {
+      border-color: #4CAF50;
+      background: rgba(76, 175, 80, 0.1);
+    }
+
+    .upload-dropzone input {
+      display: none;
+    }
+
+    .upload-preview {
+      max-width: 100%;
+      max-height: 200px;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .modal-buttons button {
+      flex: 1;
+    }
+
+    .btn-cancel {
+      background: #666;
+    }
+
+    .btn-cancel:hover {
+      background: #777;
+    }
+
+    .map-preview-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+      justify-content: center;
+    }
+
+    .map-preview-item {
+      text-align: center;
+    }
+
+    .map-preview-item img {
+      width: 60px;
+      height: 60px;
+      border-radius: 4px;
+      border: 1px solid #444;
+    }
+
+    .map-preview-item span {
+      display: block;
+      font-size: 10px;
+      color: #888;
+      margin-top: 4px;
+    }
+
     .gallery-empty {
       grid-column: 1 / -1;
       text-align: center;
@@ -275,16 +398,43 @@
     <button onclick="generateTexture()">Generate Texture</button>
     <div id="texture-result"></div>
     
+    <h2>📤 Upload Texture</h2>
+    <p style="color: #888; margin-bottom: 10px;">Upload your own image as a texture. Normal and smoothness maps will be auto-generated.</p>
+    <div class="upload-dropzone" id="main-upload-zone" onclick="document.getElementById('main-upload-input').click()">
+      <input type="file" id="main-upload-input" accept="image/*" onchange="handleMainUpload(event)">
+      <p>📁 Click or drag image here</p>
+      <p style="font-size: 12px; color: #666;">Supports PNG, JPG, WebP</p>
+    </div>
+    <div id="upload-result"></div>
+    
     <h2>📦 Texture Gallery</h2>
-    <p style="color: #888; margin-bottom: 10px;">Click a texture to select it, then use the wand in VRChat to apply it to objects.</p>
+    <p style="color: #888; margin-bottom: 10px;">Click a texture to select it, then use the wand in VRChat to apply it to objects. Click 📤 to replace with your own image.</p>
     
     <div class="selected-preview" id="selected-preview" style="display: none;">
       <p>Currently Selected:</p>
       <img id="selected-preview-img" src="" alt="Selected texture">
+      <div class="map-preview-row" id="selected-maps-preview"></div>
     </div>
     
     <div class="texture-gallery" id="texture-gallery">
       <div class="gallery-empty">No textures generated yet. Create one above!</div>
+    </div>
+  </div>
+
+  <!-- Upload Modal -->
+  <div class="upload-modal" id="upload-modal">
+    <div class="upload-modal-content">
+      <h3>📤 Upload Texture to ID #<span id="upload-target-id"></span></h3>
+      <div class="upload-dropzone" id="modal-upload-zone" onclick="document.getElementById('modal-upload-input').click()">
+        <input type="file" id="modal-upload-input" accept="image/*" onchange="handleModalUpload(event)">
+        <p>📁 Click or drag image here</p>
+        <p style="font-size: 12px; color: #666;">Supports PNG, JPG, WebP</p>
+      </div>
+      <img id="upload-preview" class="upload-preview" style="display: none;">
+      <div class="modal-buttons">
+        <button class="btn-cancel" onclick="closeUploadModal()">Cancel</button>
+        <button id="confirm-upload-btn" onclick="confirmUpload()" disabled>Upload</button>
+      </div>
     </div>
   </div>
 
@@ -369,8 +519,10 @@
     window.onload = loadCurrentPrompts;
 
     // Texture controller functions
-    let textures = [];  // Array of {id, url}
+    let textures = [];  // Array of {id, url, normalUrl, smoothnessUrl}
     let selectedId = -1;
+    let uploadTargetId = null;
+    let uploadFile = null;
     
     async function pollTextureStatus() {
       try {
@@ -392,6 +544,7 @@
       const gallery = document.getElementById('texture-gallery');
       const preview = document.getElementById('selected-preview');
       const previewImg = document.getElementById('selected-preview-img');
+      const mapsPreview = document.getElementById('selected-maps-preview');
       
       if (textures.length === 0) {
         gallery.innerHTML = '<div class="gallery-empty">No textures generated yet. Create one above!</div>';
@@ -402,16 +555,26 @@
       // Find selected texture
       const selectedTexture = textures.find(t => t.id === selectedId);
       
-      // Show selected preview
+      // Show selected preview with maps
       if (selectedTexture) {
         preview.style.display = 'block';
         previewImg.src = selectedTexture.url + '?t=' + Date.now();
         document.querySelector('#selected-preview p').innerHTML = `Currently Selected: <span style="color:#4CAF50">#${selectedId}</span>`;
+        
+        // Show normal and smoothness map previews if available
+        let mapsHtml = '';
+        if (selectedTexture.normalUrl) {
+          mapsHtml += `<div class="map-preview-item"><img src="${selectedTexture.normalUrl}?t=${Date.now()}" alt="Normal"><span>Normal</span></div>`;
+        }
+        if (selectedTexture.smoothnessUrl) {
+          mapsHtml += `<div class="map-preview-item"><img src="${selectedTexture.smoothnessUrl}?t=${Date.now()}" alt="Smoothness"><span>Smoothness</span></div>`;
+        }
+        mapsPreview.innerHTML = mapsHtml;
       } else {
         preview.style.display = 'none';
       }
       
-      // Render thumbnails with ID badges
+      // Render thumbnails with ID badges and upload buttons
       gallery.innerHTML = textures.map(t => `
         <div class="texture-item">
           <span class="texture-id-badge">#${t.id}</span>
@@ -422,6 +585,7 @@
             alt="Texture ID ${t.id}"
             title="ID: ${t.id}"
           >
+          <button class="texture-upload-btn" onclick="event.stopPropagation(); openUploadModal(${t.id})" title="Replace texture">📤</button>
         </div>
       `).join('');
     }
@@ -443,6 +607,129 @@
         console.error('Select error:', err);
       }
     }
+    
+    // Upload Modal functions
+    function openUploadModal(id) {
+      uploadTargetId = id;
+      uploadFile = null;
+      document.getElementById('upload-target-id').textContent = id;
+      document.getElementById('upload-preview').style.display = 'none';
+      document.getElementById('confirm-upload-btn').disabled = true;
+      document.getElementById('modal-upload-input').value = '';
+      document.getElementById('upload-modal').classList.add('active');
+    }
+    
+    function closeUploadModal() {
+      document.getElementById('upload-modal').classList.remove('active');
+      uploadTargetId = null;
+      uploadFile = null;
+    }
+    
+    function handleModalUpload(event) {
+      const file = event.target.files[0];
+      if (file) {
+        uploadFile = file;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          document.getElementById('upload-preview').src = e.target.result;
+          document.getElementById('upload-preview').style.display = 'block';
+          document.getElementById('confirm-upload-btn').disabled = false;
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+    
+    async function confirmUpload() {
+      if (!uploadFile || !uploadTargetId) return;
+      
+      const btn = document.getElementById('confirm-upload-btn');
+      btn.disabled = true;
+      btn.textContent = 'Uploading...';
+      
+      try {
+        const formData = new FormData();
+        formData.append('texture', uploadFile);
+        formData.append('id', uploadTargetId);
+        
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+          textures = data.textures;
+          selectedId = data.selectedId;
+          renderGallery();
+          closeUploadModal();
+        } else {
+          alert('Upload failed: ' + data.error);
+        }
+      } catch (err) {
+        alert('Upload failed: ' + err.message);
+      }
+      
+      btn.disabled = false;
+      btn.textContent = 'Upload';
+    }
+    
+    // Main upload (no specific ID)
+    async function handleMainUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const resultEl = document.getElementById('upload-result');
+      resultEl.innerHTML = '<div class="texture-result">⏳ Uploading and generating maps...</div>';
+      
+      try {
+        const formData = new FormData();
+        formData.append('texture', file);
+        
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+          textures = data.textures;
+          selectedId = data.selectedId;
+          renderGallery();
+          resultEl.innerHTML = `<div class="texture-result success">✓ Uploaded! ID: ${data.texture.id} (with normal & smoothness maps)</div>`;
+          document.getElementById('main-upload-input').value = '';
+        } else {
+          resultEl.innerHTML = `<div class="texture-result error">Error: ${data.error}</div>`;
+        }
+      } catch (err) {
+        resultEl.innerHTML = `<div class="texture-result error">Upload failed: ${err.message}</div>`;
+      }
+    }
+    
+    // Drag and drop support
+    ['main-upload-zone', 'modal-upload-zone'].forEach(zoneId => {
+      const zone = document.getElementById(zoneId);
+      if (zone) {
+        zone.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          zone.classList.add('dragover');
+        });
+        zone.addEventListener('dragleave', () => {
+          zone.classList.remove('dragover');
+        });
+        zone.addEventListener('drop', (e) => {
+          e.preventDefault();
+          zone.classList.remove('dragover');
+          const file = e.dataTransfer.files[0];
+          if (file && file.type.startsWith('image/')) {
+            const input = zone.querySelector('input[type="file"]');
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
+            input.dispatchEvent(new Event('change'));
+          }
+        });
+      }
+    });
     
     async function generateTexture() {
       const prompt = document.getElementById('texture-prompt').value.trim();

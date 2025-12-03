@@ -7,8 +7,24 @@ import {OpenAI} from "openai";
 import {GoogleGenerativeAI} from "@google/generative-ai";
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import { streamText, ModelMessage } from 'ai';
+import multer from 'multer';
+import sharp from 'sharp';
 
 require('dotenv').config({ override: true });
+
+// Multer storage configuration for texture uploads
+const storage = multer.memoryStorage();
+const upload = multer({ 
+    storage: storage,
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed'));
+        }
+    }
+});
 
 const app = express();
 
@@ -28,8 +44,10 @@ const geminiImageModel = genAI.getGenerativeModel({model: "gemini-2.0-flash-exp"
 
 // VRChat Dynamic Texture System
 interface TextureEntry {
-    id: number;      // Stable ID that never changes
-    url: string;     // URL to the texture file
+    id: number;           // Stable ID that never changes
+    url: string;          // URL to the texture file
+    normalUrl?: string;   // URL to the normal map
+    smoothnessUrl?: string; // URL to the smoothness map
 }
 
 interface WorldState {
@@ -320,23 +338,22 @@ app.post('/api/generate', async (req, res) => {
             return res.status(500).json({ error: "No image generated" });
         }
         
-        // Ensure directory exists
-        if (!fs.existsSync('public/textures')) {
-            fs.mkdirSync('public/textures', { recursive: true });
-        }
-        
-        // Save with timestamp filename
+        // Process texture and generate normal/smoothness maps
         const timestamp = Date.now();
-        const filename = `texture_${timestamp}.png`;
-        const filepath = `public/textures/${filename}`;
-        fs.writeFileSync(filepath, Buffer.from(imageData, 'base64'));
+        const imageBuffer = Buffer.from(imageData, 'base64');
+        const { textureFilename, normalFilename, smoothnessFilename } = 
+            await processTextureWithMaps(imageBuffer, timestamp);
         
-        const textureUrl = `https://ai.seamen.love/textures/${filename}`;
+        const textureUrl = `https://ai.seamen.love/textures/${textureFilename}`;
+        const normalUrl = `https://ai.seamen.love/textures/${normalFilename}`;
+        const smoothnessUrl = `https://ai.seamen.love/textures/${smoothnessFilename}`;
         
         // Create texture entry with stable ID
         const textureEntry: TextureEntry = {
             id: worldState.nextId++,
-            url: textureUrl
+            url: textureUrl,
+            normalUrl: normalUrl,
+            smoothnessUrl: smoothnessUrl
         };
         
         // Recycle IDs 1-20
@@ -367,6 +384,296 @@ app.post('/api/generate', async (req, res) => {
     } catch (error) {
         console.error('[Texture] Generation error:', error);
         res.status(500).json({ error: "Failed to generate texture" });
+    }
+});
+
+// Generate Normal Map from an image buffer
+async function generateNormalMap(inputBuffer: Buffer, outputPath: string): Promise<void> {
+    // Get image as raw pixel data
+    const image = sharp(inputBuffer);
+    const metadata = await image.metadata();
+    const width = metadata.width || 512;
+    const height = metadata.height || 512;
+    
+    // Convert to grayscale for height/bump data
+    const grayscaleBuffer = await image
+        .greyscale()
+        .raw()
+        .toBuffer();
+    
+    // Generate normal map using Sobel-like operators
+    const normalData = Buffer.alloc(width * height * 3);
+    const strength = 2.0; // Normal map strength
+    
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            // Sample neighboring pixels (with wrapping for seamless)
+            const getPixel = (px: number, py: number) => {
+                px = ((px % width) + width) % width;
+                py = ((py % height) + height) % height;
+                return grayscaleBuffer[py * width + px] / 255.0;
+            };
+            
+            // Sobel operator for gradients
+            const left = getPixel(x - 1, y);
+            const right = getPixel(x + 1, y);
+            const up = getPixel(x, y - 1);
+            const down = getPixel(x, y + 1);
+            
+            // Calculate gradients
+            const dx = (left - right) * strength;
+            const dy = (up - down) * strength;
+            const dz = 1.0;
+            
+            // Normalize
+            const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            const nx = dx / length;
+            const ny = dy / length;
+            const nz = dz / length;
+            
+            // Convert to 0-255 range (normal maps store as RGB)
+            const idx = (y * width + x) * 3;
+            normalData[idx + 0] = Math.floor((nx * 0.5 + 0.5) * 255); // R = X
+            normalData[idx + 1] = Math.floor((ny * 0.5 + 0.5) * 255); // G = Y
+            normalData[idx + 2] = Math.floor((nz * 0.5 + 0.5) * 255); // B = Z
+        }
+    }
+    
+    // Save as PNG
+    await sharp(normalData, { raw: { width, height, channels: 3 } })
+        .png()
+        .toFile(outputPath);
+}
+
+// Generate Smoothness Map from an image buffer (inverted roughness based on color variation)
+async function generateSmoothnessMap(inputBuffer: Buffer, outputPath: string): Promise<void> {
+    const image = sharp(inputBuffer);
+    const metadata = await image.metadata();
+    const width = metadata.width || 512;
+    const height = metadata.height || 512;
+    
+    // Get grayscale version as base
+    const grayscaleBuffer = await image
+        .greyscale()
+        .raw()
+        .toBuffer();
+    
+    // Calculate local variance to estimate roughness, then invert for smoothness
+    const smoothnessData = Buffer.alloc(width * height);
+    const windowSize = 3;
+    
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            // Sample window around pixel
+            let sum = 0;
+            let sumSq = 0;
+            let count = 0;
+            
+            for (let wy = -windowSize; wy <= windowSize; wy++) {
+                for (let wx = -windowSize; wx <= windowSize; wx++) {
+                    const px = ((x + wx) % width + width) % width;
+                    const py = ((y + wy) % height + height) % height;
+                    const val = grayscaleBuffer[py * width + px];
+                    sum += val;
+                    sumSq += val * val;
+                    count++;
+                }
+            }
+            
+            // Calculate variance (roughness indicator)
+            const mean = sum / count;
+            const variance = (sumSq / count) - (mean * mean);
+            
+            // Normalize variance to 0-1, then invert for smoothness
+            // High variance = rough surface = low smoothness
+            const normalizedVariance = Math.min(variance / 2000, 1.0);
+            const smoothness = 1.0 - normalizedVariance;
+            
+            // Apply some contrast and bias towards mid-range smoothness
+            const finalSmoothness = Math.pow(smoothness, 0.7) * 0.8 + 0.1;
+            
+            smoothnessData[y * width + x] = Math.floor(finalSmoothness * 255);
+        }
+    }
+    
+    // Save as grayscale PNG
+    await sharp(smoothnessData, { raw: { width, height, channels: 1 } })
+        .png()
+        .toFile(outputPath);
+}
+
+// Process texture and generate all maps
+async function processTextureWithMaps(imageBuffer: Buffer, timestamp: number): Promise<{
+    textureFilename: string;
+    normalFilename: string;
+    smoothnessFilename: string;
+}> {
+    // Ensure directory exists
+    if (!fs.existsSync('public/textures')) {
+        fs.mkdirSync('public/textures', { recursive: true });
+    }
+    
+    const textureFilename = `texture_${timestamp}.png`;
+    const normalFilename = `texture_${timestamp}_normal.png`;
+    const smoothnessFilename = `texture_${timestamp}_smoothness.png`;
+    
+    const texturePath = `public/textures/${textureFilename}`;
+    const normalPath = `public/textures/${normalFilename}`;
+    const smoothnessPath = `public/textures/${smoothnessFilename}`;
+    
+    // Save the main texture (convert to PNG to ensure format)
+    await sharp(imageBuffer).png().toFile(texturePath);
+    
+    // Generate normal map
+    console.log(`[Texture] Generating normal map...`);
+    await generateNormalMap(imageBuffer, normalPath);
+    
+    // Generate smoothness map
+    console.log(`[Texture] Generating smoothness map...`);
+    await generateSmoothnessMap(imageBuffer, smoothnessPath);
+    
+    return { textureFilename, normalFilename, smoothnessFilename };
+}
+
+// Upload texture to a specific ID (or create new)
+app.post('/api/upload', upload.single('texture'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: "No file uploaded" });
+        }
+        
+        const targetId = req.body.id ? parseInt(req.body.id) : null;
+        
+        console.log(`[Texture] Uploading texture${targetId ? ` to ID ${targetId}` : ' (new)'}`);
+        
+        const timestamp = Date.now();
+        const { textureFilename, normalFilename, smoothnessFilename } = 
+            await processTextureWithMaps(req.file.buffer, timestamp);
+        
+        const textureUrl = `https://ai.seamen.love/textures/${textureFilename}`;
+        const normalUrl = `https://ai.seamen.love/textures/${normalFilename}`;
+        const smoothnessUrl = `https://ai.seamen.love/textures/${smoothnessFilename}`;
+        
+        if (targetId && targetId >= 1 && targetId <= 20) {
+            // Update existing texture at this ID or create one with this ID
+            const existingIndex = worldState.textures.findIndex(t => t.id === targetId);
+            
+            const textureEntry: TextureEntry = {
+                id: targetId,
+                url: textureUrl,
+                normalUrl: normalUrl,
+                smoothnessUrl: smoothnessUrl
+            };
+            
+            if (existingIndex !== -1) {
+                // Replace existing
+                worldState.textures[existingIndex] = textureEntry;
+                console.log(`[Texture] Replaced texture at ID ${targetId}`);
+            } else {
+                // Add new with specific ID
+                worldState.textures.unshift(textureEntry);
+                if (worldState.textures.length > worldState.maxTextures) {
+                    worldState.textures = worldState.textures.slice(0, worldState.maxTextures);
+                }
+                console.log(`[Texture] Created new texture at ID ${targetId}`);
+            }
+            
+            worldState.selectedId = targetId;
+            
+            res.json({
+                success: true,
+                texture: textureEntry,
+                textures: worldState.textures,
+                selectedId: worldState.selectedId
+            });
+        } else {
+            // Create new texture with next ID
+            const textureEntry: TextureEntry = {
+                id: worldState.nextId++,
+                url: textureUrl,
+                normalUrl: normalUrl,
+                smoothnessUrl: smoothnessUrl
+            };
+            
+            if (worldState.nextId > 20) {
+                worldState.nextId = 1;
+            }
+            
+            worldState.textures.unshift(textureEntry);
+            if (worldState.textures.length > worldState.maxTextures) {
+                worldState.textures = worldState.textures.slice(0, worldState.maxTextures);
+            }
+            
+            worldState.selectedId = textureEntry.id;
+            
+            console.log(`[Texture] Uploaded new texture ID ${textureEntry.id}`);
+            
+            res.json({
+                success: true,
+                texture: textureEntry,
+                textures: worldState.textures,
+                selectedId: worldState.selectedId
+            });
+        }
+    } catch (error) {
+        console.error('[Texture] Upload error:', error);
+        res.status(500).json({ error: "Failed to upload texture" });
+    }
+});
+
+// Serve normal map by ID
+app.get('/textures/id/:id_normal.png', (req, res) => {
+    const idMatch = req.params.id_normal.match(/^(\d+)_normal$/);
+    if (!idMatch) {
+        return res.status(404).send('Invalid normal map request');
+    }
+    
+    const id = parseInt(idMatch[1]);
+    const texture = worldState.textures.find(t => t.id === id);
+    
+    if (!texture || !texture.normalUrl) {
+        return res.status(404).send('Normal map not found');
+    }
+    
+    const filename = texture.normalUrl.split('/').pop();
+    const filepath = `public/textures/${filename}`;
+    
+    if (fs.existsSync(filepath)) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.setHeader('Content-Type', 'image/png');
+        res.sendFile(filepath, { root: '.' });
+    } else {
+        res.status(404).send('Normal map file not found');
+    }
+});
+
+// Serve smoothness map by ID
+app.get('/textures/id/:id_smoothness.png', (req, res) => {
+    const idMatch = req.params.id_smoothness.match(/^(\d+)_smoothness$/);
+    if (!idMatch) {
+        return res.status(404).send('Invalid smoothness map request');
+    }
+    
+    const id = parseInt(idMatch[1]);
+    const texture = worldState.textures.find(t => t.id === id);
+    
+    if (!texture || !texture.smoothnessUrl) {
+        return res.status(404).send('Smoothness map not found');
+    }
+    
+    const filename = texture.smoothnessUrl.split('/').pop();
+    const filepath = `public/textures/${filename}`;
+    
+    if (fs.existsSync(filepath)) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.setHeader('Content-Type', 'image/png');
+        res.sendFile(filepath, { root: '.' });
+    } else {
+        res.status(404).send('Smoothness map file not found');
     }
 });
 
