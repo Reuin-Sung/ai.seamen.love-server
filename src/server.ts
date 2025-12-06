@@ -5,10 +5,10 @@ import * as http from 'http';
 import * as https from 'https';
 import {OpenAI} from "openai";
 import {GoogleGenerativeAI} from "@google/generative-ai";
-import { createOpenRouter } from '@openrouter/ai-sdk-provider'
-import { streamText, ModelMessage } from 'ai';
 import multer from 'multer';
 import sharp from 'sharp';
+import {OpenRouter} from "@openrouter/sdk";
+import {ChatMessageContentItemText, ChatResponseChoice, Message} from "@openrouter/sdk/models";
 
 require('dotenv').config({ override: true });
 
@@ -32,11 +32,10 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 
-const openrouter = createOpenRouter({
+let openRouterModel = "x-ai/grok-4.1-fast";
+const openRouter = new OpenRouter({
     apiKey: process.env.OPENROUTER_API_KEY,
 });
-
-let openRouterModel = openrouter('x-ai/grok-4.1-fast:free');
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 const geminiModel = genAI.getGenerativeModel({model: "gemini-2.5-flash"});
@@ -103,7 +102,7 @@ async function generatePromptsOpenRouter(prompts: string[], amount: number): Pro
     try {
         let res: string[] = [];
         for (let i = 0; i < prompts.length; i++) {
-            let messages : ModelMessage[] = [{
+            let messages : Message[] = [{
                 role: 'system',
                 content: originPrompt,
             }];
@@ -132,13 +131,12 @@ async function generatePromptsOpenRouter(prompts: string[], amount: number): Pro
     }
 }
 
-async function sendOpenRouterMessage(chat: ModelMessage[] = []): Promise<ModelMessage[]> {
-    const text = await (streamText({
+async function sendOpenRouterMessage(chat: Message[] = []): Promise<Message[]> {
+    const text = await openRouter.chat.send({
         model: openRouterModel,
         messages: chat
-    })).text;
-
-    chat.push({role: 'assistant', content: text});
+    });
+    chat = text.choices.map(c => c.message);
     return chat;
 }
 
@@ -766,11 +764,11 @@ app.post('/regenerate', async (req, res) => {
     currentTablePrompt = `${req.body.tablePrompt || ''}`.trim();
     let a = `${req.body.aiModel}`.trim();
     if (a != "") {
-        openRouterModel = openrouter(a);
+        openRouterModel = a;
     }
     else
     {
-        openRouterModel = openrouter('x-ai/grok-4.1-fast:free');
+        openRouterModel = 'x-ai/grok-4.1-fast';
     }
 
     let res2 = await regeneratePrompts();
