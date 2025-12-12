@@ -802,19 +802,14 @@ async function regeneratePrompts() {
 }
 
 // Create HTTPS server
-try
-{
-    const httpsServer = https.createServer(options, app);
-    httpsServer.listen(443, () => {
-        console.log('HTTPS Server running on port 443');
-    }).on('error', (err) => {
-        console.error('Failed to start HTTPS server:', err);
-    });
-}
-catch(err)
-{
+const httpsServer = https.createServer(options, app).on("error", (err) => {
     console.error("Failed to create HTTPS server:", err);
-}
+});
+httpsServer.listen(443, () => {
+    console.log('HTTPS Server running on port 443');
+}).on('error', (err) => {
+    console.error('Failed to start HTTPS server:', err);
+});
 
 // Create HTTP server using the Express app
 const httpServer = http.createServer(app);
