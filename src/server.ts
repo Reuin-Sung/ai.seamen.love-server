@@ -820,3 +820,11 @@ httpServer.listen(80, () => {
 }).on('error', (err) => {
     console.error('Failed to start HTTP server:', err);
 });
+
+// Add a catch-all route to redirect HTTP to HTTPS (except for ACME challenges)
+app.use((req, res, next) => {
+    if (!req.secure && !req.url.startsWith('/.well-known/acme-challenge/')) {
+        return res.redirect(`https://${req.headers.host}${req.url}`);
+    }
+    next();
+});
