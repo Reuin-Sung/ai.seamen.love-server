@@ -801,15 +801,20 @@ async function regeneratePrompts() {
     return a;
 }
 
-// Create HTTPS server
-const httpsServer = https.createServer(options, app).on("error", (err) => {
-    console.error("Failed to create HTTPS server:", err);
-});
-httpsServer.listen(443, () => {
-    console.log('HTTPS Server running on port 443');
-}).on('error', (err) => {
-    console.error('Failed to start HTTPS server:', err);
-});
+if(fs.existsSync(options.key) && fs.existsSync(options.cert)) {
+    // Create HTTPS server
+    const httpsServer = https.createServer(options, app)
+        .on("error", (err) => {
+            console.error("Failed to create HTTPS server:", err);
+        });
+    httpsServer.listen(443, () => {
+        console.log('HTTPS Server running on port 443');
+    }).on('error', (err) => {
+        console.error('Failed to start HTTPS server:', err);
+    });
+} else {
+    console.error("SSL certificate not found. Skipping HTTPS server.");
+}
 
 // Create HTTP server using the Express app
 const httpServer = http.createServer(app);
