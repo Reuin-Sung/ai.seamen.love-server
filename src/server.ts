@@ -801,6 +801,8 @@ async function regeneratePrompts() {
     return a;
 }
 
+console.log("key: ", fs.existsSync(options.key));
+console.log("cert: ", fs.existsSync(options.cert));
 if(fs.existsSync(options.key) && fs.existsSync(options.cert)) {
     // Create HTTPS server
     const httpsServer = https.createServer(options, app)
