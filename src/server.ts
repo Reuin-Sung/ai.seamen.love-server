@@ -803,16 +803,13 @@ async function regeneratePrompts() {
 
 /*
 // Create HTTPS server
-const httpsServer = https.createServer(options, app)
-    .on("error", (err) => {
-        console.error("Failed to create HTTPS server:", err);
-    });
+const httpsServer = https.createServer(options, app);
 httpsServer.listen(443, () => {
     console.log('HTTPS Server running on port 443');
 }).on('error', (err) => {
     console.error('Failed to start HTTPS server:', err);
 });
- */
+*/
 
 // Create HTTP server using the Express app
 const httpServer = http.createServer(app);
