@@ -112,11 +112,11 @@ async function generatePromptsOpenRouter(prompts: string[], amount: number): Pro
             for (let j = 0; j < amount; j++) {
                 messages.push({
                     role: 'user',
-                    content: prompts[j]
+                    content: prompts[i]
                 });
 
-                console.log("Sending message: " + prompts[j]);
-                if (prompts[j] == undefined) {
+                console.log("Sending message: " + prompts[i]);
+                if (prompts[i] == undefined) {
                     continue;
                 }
                 messages = await sendOpenRouterMessage(messages);
