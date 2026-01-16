@@ -86,7 +86,8 @@ const fixedPromptParts = {
     table: "Generate a drink prompt for a social drinking game of spin the table. Don't tell the user to drink too much."
 };
 
-const originPrompt: string = "You are a spin the bottle prompt generator, no singing, keep it in mind that the person that was randomly selected is the one doing the action, keep it less than 12 words, keep in mind this will be in a VR game called VRCHAT, and also, like dont be cringe dude. Only generate 1 option per message. Don't mention spin the bottle.";
+//const originPrompt: string = "You are a spin the bottle prompt generator, no singing, keep it in mind that the person that was randomly selected is the one doing the action, keep it less than 12 words, keep in mind this will be in a VR game called VRCHAT, and also, like dont be cringe dude. Only generate 1 option per message. Don't mention spin the bottle.";
+const originPrompt: string = "You are a spin the bottle prompt generator, no singing, keep it in mind that the person that was randomly selected is the one doing the action, keep it less than 12 words per response, keep in mind this will be in a VR game called VRCHAT, and also, like dont be cringe dude. Don't mention spin the bottle, dare, or truth. Do not use any asterisk or emojis in the responses.";
 
 let currentDarePrompt = '';
 let currentTruthPrompt = '';
@@ -103,9 +104,22 @@ async function generatePromptsOpenRouter(prompts: string[], amount: number): Pro
         let res: string[] = [];
         for (let i = 0; i < prompts.length; i++) {
             let messages : Message[] = [{
-                role: 'user',
+                role: 'system',
                 content: originPrompt,
+            },
+            {
+                role: "user",
+                content: "Generate " + amount + " prompts, separated by a semicolon. Make the prompts relating to: " + prompts[i]
             }];
+
+            messages = await sendOpenRouterMessage(messages);
+            let ret = messages.pop();
+            (ret.content as string).split(';').forEach(m => {
+                console.log("Received message: " + m);
+                res.push(m);
+            })
+
+            /*
 
             for (let j = 0; j < amount; j++) {
                 messages.push({
@@ -124,6 +138,8 @@ async function generatePromptsOpenRouter(prompts: string[], amount: number): Pro
                 console.log("Received message: " + m.content);
                 res.push(m.content as string)
             });
+
+            */
         }
 
         return res;
