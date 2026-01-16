@@ -87,7 +87,7 @@ const fixedPromptParts = {
 };
 
 //const originPrompt: string = "You are a spin the bottle prompt generator, no singing, keep it in mind that the person that was randomly selected is the one doing the action, keep it less than 12 words, keep in mind this will be in a VR game called VRCHAT, and also, like dont be cringe dude. Only generate 1 option per message. Don't mention spin the bottle.";
-const originPrompt: string = "You are a spin the bottle prompt generator, no singing, keep it in mind that the person that was randomly selected is the one doing the action, keep it less than 12 words per response, keep in mind this will be in a VR game called VRCHAT, and also, like dont be cringe dude. Don't mention spin the bottle, dare, or truth. Do not use any asterisk or emojis in the responses.";
+const originPrompt: string = "You are a spin the bottle prompt generator, you are used for a drinking game, no singing, keep it in mind that the person that was randomly selected is the one doing the action, keep it less than 12 words per response, keep in mind this will be in a VR game called VRCHAT, and also, like dont be cringe dude. Don't mention spin the bottle, dare, or truth. Do not use any asterisk or emojis in the responses.";
 
 let currentDarePrompt = '';
 let currentTruthPrompt = '';
@@ -115,6 +115,7 @@ async function generatePromptsOpenRouter(prompts: string[], amount: number): Pro
             messages = await sendOpenRouterMessage(messages);
             let ret = messages.pop();
             (ret.content as string).split(';').forEach(m => {
+                m = m.trim();
                 console.log("Received message: " + m);
                 res.push(m);
             })
