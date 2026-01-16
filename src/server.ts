@@ -107,8 +107,6 @@ async function generatePromptsOpenRouter(prompts: string[], amount: number): Pro
                 content: originPrompt,
             }];
 
-            messages = await sendOpenRouterMessage(messages);
-
             for (let j = 0; j < amount; j++) {
                 messages.push({
                     role: 'user',
@@ -122,7 +120,10 @@ async function generatePromptsOpenRouter(prompts: string[], amount: number): Pro
                 messages = await sendOpenRouterMessage(messages);
             }
 
-            messages.filter((m) => m.role != 'user' && m.role != 'system').forEach((m) => res.push(m.content as string));
+            messages.filter((m) => m.role != 'user' && m.role != 'system').forEach((m) => {
+                console.log("Received message: " + m.content);
+                res.push(m.content as string)
+            });
         }
 
         return res;
