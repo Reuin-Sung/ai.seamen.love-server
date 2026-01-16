@@ -103,7 +103,7 @@ async function generatePromptsOpenRouter(prompts: string[], amount: number): Pro
         let res: string[] = [];
         for (let i = 0; i < prompts.length; i++) {
             let messages : Message[] = [{
-                role: 'system',
+                role: 'user',
                 content: originPrompt,
             }];
 
