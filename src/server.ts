@@ -608,17 +608,30 @@ async function processTextureWithMaps(imageBuffer: Buffer, timestamp: number): P
     const normalPath = `public/textures/${normalFilename}`;
     const smoothnessPath = `public/textures/${smoothnessFilename}`;
     
-    // Save the main texture (convert to PNG to ensure format)
-    await sharp(imageBuffer).png().toFile(texturePath);
-    
-    // Generate normal map
+    // VRChat's VRCImageDownloader rejects any image larger than 2048x2048 (downloaded images
+    // become uncompressed VRAM textures). Cap the source ONCE here so the albedo AND the
+    // derived normal/smoothness maps are all within the limit. 'inside' preserves aspect ratio
+    // and only shrinks (withoutEnlargement), so already-small textures pass through untouched.
+    const MAX_SIZE = 2048;
+    const processedBuffer = await sharp(imageBuffer)
+        .resize(MAX_SIZE, MAX_SIZE, { fit: 'inside', withoutEnlargement: true })
+        .png()
+        .toBuffer();
+
+    const capped = await sharp(processedBuffer).metadata();
+    console.log(`[Texture] Source capped to ${capped.width}x${capped.height} (max ${MAX_SIZE})`);
+
+    // Save the main texture (already PNG and within the size limit)
+    await sharp(processedBuffer).png().toFile(texturePath);
+
+    // Generate normal map (from the capped buffer, so it's also <= MAX_SIZE)
     console.log(`[Texture] Generating normal map...`);
-    await generateNormalMap(imageBuffer, normalPath);
-    
-    // Generate smoothness map
+    await generateNormalMap(processedBuffer, normalPath);
+
+    // Generate smoothness map (from the capped buffer, so it's also <= MAX_SIZE)
     console.log(`[Texture] Generating smoothness map...`);
-    await generateSmoothnessMap(imageBuffer, smoothnessPath);
-    
+    await generateSmoothnessMap(processedBuffer, smoothnessPath);
+
     return { textureFilename, normalFilename, smoothnessFilename };
 }
 
